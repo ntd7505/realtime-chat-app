@@ -1,0 +1,30 @@
+spring:
+  application:
+    name: chat-app-server
+
+  config:
+    import: optional:file:.env[.properties]
+
+  datasource:
+    url: ${POSTGRES_JDBC_URL}
+    username: ${POSTGRES_USER}
+    password: ${POSTGRES_PASSWORD}
+    driver-class-name: ${POSTGRES_DRIVER}
+
+  jpa:
+    hibernate:
+      ddl-auto: validate
+    open-in-view: false
+
+  flyway:
+    enabled: true
+    locations: classpath:db/migration
+
+  devtools:
+    restart:
+      enabled: false
+
+app:
+  jwt:
+    secret: ${JWT_SECRET}
+    access-token-expiration: 3600
