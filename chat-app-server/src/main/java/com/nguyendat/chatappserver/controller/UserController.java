@@ -22,13 +22,13 @@ import org.springframework.web.bind.annotation.RestController;
 @RequiredArgsConstructor
 public class UserController {
 
-    UserService userService;
+  UserService userService;
 
-    @PostMapping("/register")
-    public ResponseEntity<ApiResponse<UserResponse>> registerUser(
-            @Valid @RequestBody RegisterRequest request) {
-        UserResponse result = userService.registerUser(request);
-        return ResponseEntity.status(HttpStatus.CREATED)
-                .body(ApiResponse.success(ResponseCode.USER_REGISTERED, result));
-    }
+  @PostMapping("/register")
+  public ResponseEntity<ApiResponse<UserResponse>> registerUser(
+      @Valid @RequestBody RegisterRequest request) {
+    UserResponse result = userService.registerUser(request);
+    return ResponseEntity.status(HttpStatus.CREATED)
+        .body(ApiResponse.success(ResponseCode.USER_REGISTERED, result));
+  }
 }

@@ -11,9 +11,7 @@ import jakarta.persistence.JoinColumn;
 import jakarta.persistence.ManyToOne;
 import jakarta.persistence.Table;
 import jakarta.persistence.UniqueConstraint;
-
 import java.time.LocalDateTime;
-
 import lombok.AccessLevel;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
@@ -27,32 +25,32 @@ import org.hibernate.annotations.CreationTimestamp;
 @NoArgsConstructor
 @FieldDefaults(level = AccessLevel.PRIVATE)
 @Table(
-        name = "user_blocks",
-        uniqueConstraints =
+    name = "user_blocks",
+    uniqueConstraints =
         @UniqueConstraint(
-                name = "uk_user_blocks_blocker_blocked",
-                columnNames = {"blocker_id", "blocked_user_id"}))
+            name = "uk_user_blocks_blocker_blocked",
+            columnNames = {"blocker_id", "blocked_user_id"}))
 public class UserBlock {
 
-    @Id
-    @GeneratedValue(strategy = GenerationType.IDENTITY)
-    Long id;
+  @Id
+  @GeneratedValue(strategy = GenerationType.IDENTITY)
+  Long id;
 
-    @ManyToOne(fetch = FetchType.LAZY, optional = false)
-    @JoinColumn(
-            name = "blocker_id",
-            nullable = false,
-            foreignKey = @ForeignKey(name = "fk_user_blocks_blocker"))
-    User blocker;
+  @ManyToOne(fetch = FetchType.LAZY, optional = false)
+  @JoinColumn(
+      name = "blocker_id",
+      nullable = false,
+      foreignKey = @ForeignKey(name = "fk_user_blocks_blocker"))
+  User blocker;
 
-    @ManyToOne(fetch = FetchType.LAZY, optional = false)
-    @JoinColumn(
-            name = "blocked_user_id",
-            nullable = false,
-            foreignKey = @ForeignKey(name = "fk_user_blocks_blocked_user"))
-    User blockedUser;
+  @ManyToOne(fetch = FetchType.LAZY, optional = false)
+  @JoinColumn(
+      name = "blocked_user_id",
+      nullable = false,
+      foreignKey = @ForeignKey(name = "fk_user_blocks_blocked_user"))
+  User blockedUser;
 
-    @CreationTimestamp
-    @Column(name = "created_at", nullable = false, updatable = false)
-    LocalDateTime createdAt;
+  @CreationTimestamp
+  @Column(name = "created_at", nullable = false, updatable = false)
+  LocalDateTime createdAt;
 }

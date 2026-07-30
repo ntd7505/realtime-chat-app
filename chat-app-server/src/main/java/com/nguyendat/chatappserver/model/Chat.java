@@ -9,9 +9,7 @@ import jakarta.persistence.GeneratedValue;
 import jakarta.persistence.GenerationType;
 import jakarta.persistence.Id;
 import jakarta.persistence.Table;
-
 import java.time.LocalDateTime;
-
 import lombok.AccessLevel;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
@@ -28,25 +26,25 @@ import org.hibernate.annotations.UpdateTimestamp;
 @Table(name = "chats")
 public class Chat {
 
-    @Id
-    @GeneratedValue(strategy = GenerationType.IDENTITY)
-    Long id;
+  @Id
+  @GeneratedValue(strategy = GenerationType.IDENTITY)
+  Long id;
 
-    @Enumerated(EnumType.STRING)
-    @Column(nullable = false, length = 20)
-    ChatType type;
+  @Enumerated(EnumType.STRING)
+  @Column(nullable = false, length = 20)
+  ChatType type;
 
-    @Column(name = "direct_key", unique = true, length = 50)
-    String directKey;
+  @Column(name = "direct_key", unique = true, length = 50)
+  String directKey;
 
-    @Column(name = "last_message_at")
-    LocalDateTime lastMessageAt;
+  @Column(name = "last_message_at")
+  LocalDateTime lastMessageAt;
 
-    @CreationTimestamp
-    @Column(name = "created_at", nullable = false, updatable = false)
-    LocalDateTime createdAt;
+  @CreationTimestamp
+  @Column(name = "created_at", nullable = false, updatable = false)
+  LocalDateTime createdAt;
 
-    @UpdateTimestamp
-    @Column(name = "updated_at", nullable = false)
-    LocalDateTime updatedAt;
+  @UpdateTimestamp
+  @Column(name = "updated_at", nullable = false)
+  LocalDateTime updatedAt;
 }

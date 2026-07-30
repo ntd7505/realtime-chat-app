@@ -19,19 +19,19 @@ import org.springframework.stereotype.Service;
 @FieldDefaults(level = AccessLevel.PRIVATE, makeFinal = true)
 public class UserServiceImpl implements UserService {
 
-    UserRepository userRepository;
-    UserMapper userMapper;
-    PasswordEncoder passwordEncoder;
+  UserRepository userRepository;
+  UserMapper userMapper;
+  PasswordEncoder passwordEncoder;
 
-    @Override
-    public UserResponse registerUser(RegisterRequest request) {
-        if (userRepository.existsUserByEmail(request.getEmail()))
-            throw new AppException(ErrorCode.USER_EXISTED);
+  @Override
+  public UserResponse registerUser(RegisterRequest request) {
+    if (userRepository.existsUserByEmail(request.getEmail()))
+      throw new AppException(ErrorCode.USER_EXISTED);
 
-        User user = userMapper.toUser(request);
-        user.setPassword(passwordEncoder.encode(request.getPassword()));
-        User savedUser = userRepository.save(user);
+    User user = userMapper.toUser(request);
+    user.setPassword(passwordEncoder.encode(request.getPassword()));
+    User savedUser = userRepository.save(user);
 
-        return userMapper.toUserResponse(savedUser);
-    }
+    return userMapper.toUserResponse(savedUser);
+  }
 }

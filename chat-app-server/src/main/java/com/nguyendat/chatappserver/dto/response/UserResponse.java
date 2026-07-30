@@ -1,10 +1,8 @@
 package com.nguyendat.chatappserver.dto.response;
 
-
+import java.time.LocalDateTime;
 import lombok.*;
 import lombok.experimental.FieldDefaults;
-
-import java.time.LocalDateTime;
 
 @Getter
 @Builder
@@ -13,9 +11,9 @@ import java.time.LocalDateTime;
 @FieldDefaults(level = AccessLevel.PRIVATE)
 public class UserResponse {
 
-    Long id;
-    String email;
-    String displayName;
-    String avatarUrl;
-    LocalDateTime createdAt;
+  Long id;
+  String email;
+  String displayName;
+  String avatarUrl;
+  LocalDateTime createdAt;
 }

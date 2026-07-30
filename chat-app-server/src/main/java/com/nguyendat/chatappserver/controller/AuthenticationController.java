@@ -21,12 +21,12 @@ import org.springframework.web.bind.annotation.RestController;
 @RequiredArgsConstructor
 public class AuthenticationController {
 
-    AuthenticationService authenticationService;
+  AuthenticationService authenticationService;
 
-    @PostMapping("/login")
-    public ResponseEntity<ApiResponse<LoginResponse>> authenticate(
-            @Valid @RequestBody LoginRequest loginRequest) {
-        LoginResponse result = authenticationService.login(loginRequest);
-        return ResponseEntity.ok(ApiResponse.success(ResponseCode.LOGIN_SUCCESS, result));
-    }
+  @PostMapping("/login")
+  public ResponseEntity<ApiResponse<LoginResponse>> authenticate(
+      @Valid @RequestBody LoginRequest loginRequest) {
+    LoginResponse result = authenticationService.login(loginRequest);
+    return ResponseEntity.ok(ApiResponse.success(ResponseCode.LOGIN_SUCCESS, result));
+  }
 }

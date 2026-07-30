@@ -11,9 +11,7 @@ import jakarta.persistence.JoinColumn;
 import jakarta.persistence.ManyToOne;
 import jakarta.persistence.Table;
 import jakarta.persistence.UniqueConstraint;
-
 import java.time.LocalDateTime;
-
 import lombok.AccessLevel;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
@@ -27,38 +25,38 @@ import org.hibernate.annotations.CreationTimestamp;
 @NoArgsConstructor
 @FieldDefaults(level = AccessLevel.PRIVATE)
 @Table(
-        name = "chat_members",
-        uniqueConstraints =
+    name = "chat_members",
+    uniqueConstraints =
         @UniqueConstraint(
-                name = "uk_chat_members_chat_user",
-                columnNames = {"chat_id", "user_id"}))
+            name = "uk_chat_members_chat_user",
+            columnNames = {"chat_id", "user_id"}))
 public class ChatMember {
 
-    @Id
-    @GeneratedValue(strategy = GenerationType.IDENTITY)
-    Long id;
+  @Id
+  @GeneratedValue(strategy = GenerationType.IDENTITY)
+  Long id;
 
-    @ManyToOne(fetch = FetchType.LAZY, optional = false)
-    @JoinColumn(
-            name = "chat_id",
-            nullable = false,
-            foreignKey = @ForeignKey(name = "fk_chat_members_chat"))
-    Chat chat;
+  @ManyToOne(fetch = FetchType.LAZY, optional = false)
+  @JoinColumn(
+      name = "chat_id",
+      nullable = false,
+      foreignKey = @ForeignKey(name = "fk_chat_members_chat"))
+  Chat chat;
 
-    @ManyToOne(fetch = FetchType.LAZY, optional = false)
-    @JoinColumn(
-            name = "user_id",
-            nullable = false,
-            foreignKey = @ForeignKey(name = "fk_chat_members_user"))
-    User user;
+  @ManyToOne(fetch = FetchType.LAZY, optional = false)
+  @JoinColumn(
+      name = "user_id",
+      nullable = false,
+      foreignKey = @ForeignKey(name = "fk_chat_members_user"))
+  User user;
 
-    @ManyToOne(fetch = FetchType.LAZY)
-    @JoinColumn(
-            name = "last_read_message_id",
-            foreignKey = @ForeignKey(name = "fk_chat_members_last_read_message"))
-    Message lastReadMessage;
+  @ManyToOne(fetch = FetchType.LAZY)
+  @JoinColumn(
+      name = "last_read_message_id",
+      foreignKey = @ForeignKey(name = "fk_chat_members_last_read_message"))
+  Message lastReadMessage;
 
-    @CreationTimestamp
-    @Column(name = "joined_at", nullable = false, updatable = false)
-    LocalDateTime joinedAt;
+  @CreationTimestamp
+  @Column(name = "joined_at", nullable = false, updatable = false)
+  LocalDateTime joinedAt;
 }
