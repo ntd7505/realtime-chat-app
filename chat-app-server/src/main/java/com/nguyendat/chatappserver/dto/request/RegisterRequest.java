@@ -12,17 +12,17 @@ import lombok.experimental.FieldDefaults;
 @FieldDefaults(level = AccessLevel.PRIVATE)
 public class RegisterRequest {
 
-    @Email(message = "Email không hợp lệ")
-    @NotBlank(message = "Email không được để trống")
-    String email;
+  @Email(message = "EMAIL_INVALID")
+  @NotBlank(message = "EMAIL_REQUIRED")
+  String email;
 
-    @NotBlank(message = "Mật khẩu không được để trống")
-    @Size(min = 8, message = "Mật khẩu phải có ít nhất 8 ký tự")
-    String password;
+  @NotBlank(message = "PASSWORD_REQUIRED")
+  @Size(min = 8, message = "PASSWORD_TOO_SHORT")
+  String password;
 
-    @NotBlank(message = "Tên hiển thị không được để trống")
-    @Size(max = 100, message = "Tên hiển thị tối đa 100 ký tự")
-    String displayName;
+  @NotBlank(message = "DISPLAY_NAME_REQUIRED")
+  @Size(max = 100, message = "DISPLAY_NAME_TOO_LONG")
+  String displayName;
 
-    String avatarUrl;
+  String avatarUrl;
 }
