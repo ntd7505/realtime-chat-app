@@ -35,7 +35,21 @@ public enum ErrorCode {
   PASSWORD_REQUIRED(2012, "Mật khẩu không được để trống", HttpStatus.BAD_REQUEST),
   PASSWORD_TOO_SHORT(2013, "Mật khẩu phải có ít nhất 8 ký tự", HttpStatus.BAD_REQUEST),
   DISPLAY_NAME_REQUIRED(2014, "Tên hiển thị không được để trống", HttpStatus.BAD_REQUEST),
-  DISPLAY_NAME_TOO_LONG(2015, "Tên hiển thị tối đa 100 ký tự", HttpStatus.BAD_REQUEST);
+  DISPLAY_NAME_TOO_LONG(2015, "Tên hiển thị tối đa 100 ký tự", HttpStatus.BAD_REQUEST),
+
+  CANNOT_SEND_FRIEND_REQUEST_TO_YOURSELF(
+      2016, "Bạn không thể gửi lời mời kết bạn cho chính mình", HttpStatus.BAD_REQUEST),
+  ALREADY_FRIENDS(2017, "Hai người đã là bạn bè", HttpStatus.BAD_REQUEST),
+
+  FRIEND_REQUEST_ALREADY_EXISTS(2018, "Lời mời kết bạn đang chờ xử lý", HttpStatus.CONFLICT),
+  CANNOT_SEND_FRIEND_REQUEST_TO_USER_BLOCKED_BY_YOU(
+      2019, "Không thể gửi lời mời kết bạn vì bạn đã chặn người dùng này", HttpStatus.FORBIDDEN),
+
+  CANNOT_SEND_FRIEND_REQUEST_TO_USER_WHO_BLOCKED_YOU(
+      2020, "Không thể gửi lời mời kết bạn vì người dùng này đã chặn bạn", HttpStatus.FORBIDDEN),
+  FRIEND_REQUEST_NOT_FOUND(2021, "Không tìm thấy lời mời kết bạn", HttpStatus.NOT_FOUND),
+  FRIENDSHIP_NOT_FOUND(
+      2022, "Không tìm thấy quan hệ bạn bè hoặc lời mời kết bạn", HttpStatus.NOT_FOUND);
 
   private final int code;
   private final String message;

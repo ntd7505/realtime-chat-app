@@ -10,7 +10,14 @@ public enum ResponseCode {
   USER_REGISTERED(1001, "Đăng ký tài khoản thành công"),
   LOGIN_SUCCESS(1002, "Đăng nhập thành công"),
   LOGOUT_SUCCESS(1003, "Đăng xuất thành công"),
-  USER_FOUND(1004, "Lấy thông tin người dùng thành công");
+  USER_FOUND(1004, "Lấy thông tin người dùng thành công"),
+  FRIEND_REQUEST_DELETED(1005, "Đã hủy hoặc từ chối lời mời kết bạn"),
+  FRIENDSHIP_DELETED(1006, "Đã hủy kết bạn"),
+  FRIEND_REQUESTS_RETRIEVED(1007, "Lấy danh sách lời mời kết bạn thành công"),
+  FRIEND_REQUEST_ACCEPTED(1008, "Đã chấp nhận lời mời kết bạn"),
+  FRIEND_LIST_RETRIEVED(1009, "Lấy danh sách bạn bè thành công"),
+  FRIEND_REQUEST_SENT(1010, "Đã gửi lời mời kết bạn"),
+  ;
 
   private final int code;
   private final String message;
