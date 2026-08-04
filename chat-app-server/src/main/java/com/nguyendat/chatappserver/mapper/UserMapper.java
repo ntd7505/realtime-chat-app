@@ -2,6 +2,7 @@ package com.nguyendat.chatappserver.mapper;
 
 import com.nguyendat.chatappserver.dto.request.RegisterRequest;
 import com.nguyendat.chatappserver.dto.response.UserResponse;
+import com.nguyendat.chatappserver.dto.response.UserSummaryResponse;
 import com.nguyendat.chatappserver.model.User;
 import org.mapstruct.Mapper;
 import org.mapstruct.Mapping;
@@ -17,4 +18,6 @@ public interface UserMapper {
   User toUser(RegisterRequest request);
 
   UserResponse toUserResponse(User user);
+
+  UserSummaryResponse toUserSummaryResponse(User user);
 }

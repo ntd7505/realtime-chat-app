@@ -8,6 +8,7 @@ import com.nguyendat.chatappserver.mapper.UserMapper;
 import com.nguyendat.chatappserver.model.User;
 import com.nguyendat.chatappserver.repository.UserRepository;
 import com.nguyendat.chatappserver.service.UserService;
+import java.util.List;
 import lombok.AccessLevel;
 import lombok.RequiredArgsConstructor;
 import lombok.experimental.FieldDefaults;
@@ -33,5 +34,36 @@ public class UserServiceImpl implements UserService {
     User savedUser = userRepository.save(user);
 
     return userMapper.toUserResponse(savedUser);
+  }
+
+  @Override
+  public UserResponse getMyInfo(User user) {
+    return userMapper.toUserResponse(user);
+  }
+
+  @Override
+  public UserResponse getUserById(Long userId) {
+    User user =
+        userRepository
+            .findById(userId)
+            .orElseThrow(() -> new AppException(ErrorCode.USER_NOT_FOUND));
+
+    return userMapper.toUserResponse(user);
+  }
+
+  @Override
+  public List<UserResponse> searchUsers(String keyword) {
+    String normalizedKeyword = keyword == null ? "" : keyword.trim();
+
+    if (normalizedKeyword.isBlank()) {
+      throw new AppException(ErrorCode.INVALID_REQUEST);
+    }
+
+    return userRepository
+        .findTop20ByDisplayNameContainingIgnoreCaseOrEmailContainingIgnoreCaseOrderByDisplayNameAsc(
+            normalizedKeyword, normalizedKeyword)
+        .stream()
+        .map(userMapper::toUserResponse)
+        .toList();
   }
 }
