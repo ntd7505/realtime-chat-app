@@ -49,7 +49,10 @@ public enum ErrorCode {
       2020, "Không thể gửi lời mời kết bạn vì người dùng này đã chặn bạn", HttpStatus.FORBIDDEN),
   FRIEND_REQUEST_NOT_FOUND(2021, "Không tìm thấy lời mời kết bạn", HttpStatus.NOT_FOUND),
   FRIENDSHIP_NOT_FOUND(
-      2022, "Không tìm thấy quan hệ bạn bè hoặc lời mời kết bạn", HttpStatus.NOT_FOUND);
+      2022, "Không tìm thấy quan hệ bạn bè hoặc lời mời kết bạn", HttpStatus.NOT_FOUND),
+  CANNOT_BLOCK_YOURSELF(2023, "Bạn không thể chặn chính mình", HttpStatus.BAD_REQUEST),
+  USER_ALREADY_BLOCKED(2024, "Bạn đã chặn người dùng này", HttpStatus.CONFLICT),
+  USER_BLOCK_NOT_FOUND(2025, "Không tìm thấy thông tin chặn người dùng", HttpStatus.NOT_FOUND);
 
   private final int code;
   private final String message;
