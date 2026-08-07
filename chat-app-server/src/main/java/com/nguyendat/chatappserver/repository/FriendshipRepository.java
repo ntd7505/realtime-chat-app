@@ -86,4 +86,20 @@ public interface FriendshipRepository extends JpaRepository<Friendship, Long> {
                     """)
   List<Friendship> findAllReceivedRequests(
       @Param("currentUserId") Long currentUserId, @Param("status") FriendshipStatus status);
+
+  @Modifying
+  @Query(
+      """
+            DELETE FROM Friendship friendship
+            WHERE (
+                    friendship.requester.id = :firstUserId
+                    AND friendship.recipient.id = :secondUserId
+                  )
+               OR (
+                    friendship.requester.id = :secondUserId
+                    AND friendship.recipient.id = :firstUserId
+                  )
+            """)
+  int deleteRelationshipBetween(
+      @Param("firstUserId") Long firstUserId, @Param("secondUserId") Long secondUserId);
 }

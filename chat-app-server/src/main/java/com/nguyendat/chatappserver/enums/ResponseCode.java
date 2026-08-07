@@ -17,7 +17,9 @@ public enum ResponseCode {
   FRIEND_REQUEST_ACCEPTED(1008, "Đã chấp nhận lời mời kết bạn"),
   FRIEND_LIST_RETRIEVED(1009, "Lấy danh sách bạn bè thành công"),
   FRIEND_REQUEST_SENT(1010, "Đã gửi lời mời kết bạn"),
-  ;
+  USER_BLOCKED(1011, "Đã chặn người dùng"),
+  USER_UNBLOCKED(1012, "Đã bỏ chặn người dùng"),
+  BLOCKED_USERS_RETRIEVED(1013, "Lấy danh sách người dùng bị chặn thành công");
 
   private final int code;
   private final String message;
