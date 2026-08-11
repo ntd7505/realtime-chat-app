@@ -16,19 +16,35 @@ public interface UserBlockRepository extends JpaRepository<UserBlock, Long> {
   @Modifying
   @Query(
       """
-            DELETE FROM UserBlock userBlock
-            WHERE userBlock.blocker.id = :blockerId
-              AND userBlock.blockedUser.id = :blockedUserId
-            """)
+                    DELETE FROM UserBlock userBlock
+                    WHERE userBlock.blocker.id = :blockerId
+                      AND userBlock.blockedUser.id = :blockedUserId
+                    """)
   int deleteBlock(@Param("blockerId") Long blockerId, @Param("blockedUserId") Long blockedUserId);
 
   @Query(
       """
-            SELECT userBlock
-            FROM UserBlock userBlock
-            JOIN FETCH userBlock.blockedUser
-            WHERE userBlock.blocker.id = :blockerId
-            ORDER BY userBlock.createdAt DESC
-            """)
+                    SELECT userBlock
+                    FROM UserBlock userBlock
+                    JOIN FETCH userBlock.blockedUser
+                    WHERE userBlock.blocker.id = :blockerId
+                    ORDER BY userBlock.createdAt DESC
+                    """)
   List<UserBlock> findAllBlockedUsers(@Param("blockerId") Long blockerId);
+
+  @Query(
+      """
+            SELECT COUNT(userBlock) > 0
+            FROM UserBlock userBlock
+            WHERE (
+                    userBlock.blocker.id = :firstUserId
+                    AND userBlock.blockedUser.id = :secondUserId
+                  )
+               OR (
+                    userBlock.blocker.id = :secondUserId
+                    AND userBlock.blockedUser.id = :firstUserId
+                  )
+            """)
+  boolean existsBlockBetween(
+      @Param("firstUserId") Long firstUserId, @Param("secondUserId") Long secondUserId);
 }

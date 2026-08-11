@@ -19,7 +19,9 @@ public enum ResponseCode {
   FRIEND_REQUEST_SENT(1010, "Đã gửi lời mời kết bạn"),
   USER_BLOCKED(1011, "Đã chặn người dùng"),
   USER_UNBLOCKED(1012, "Đã bỏ chặn người dùng"),
-  BLOCKED_USERS_RETRIEVED(1013, "Lấy danh sách người dùng bị chặn thành công");
+  BLOCKED_USERS_RETRIEVED(1013, "Lấy danh sách người dùng bị chặn thành công"),
+  DIRECT_CHAT_RETRIEVED(1014, "Lấy hoặc tạo cuộc trò chuyện trực tiếp thành công"),
+  ;
 
   private final int code;
   private final String message;
