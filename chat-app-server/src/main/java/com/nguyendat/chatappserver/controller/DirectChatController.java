@@ -2,6 +2,7 @@ package com.nguyendat.chatappserver.controller;
 
 import com.nguyendat.chatappserver.dto.response.ApiResponse;
 import com.nguyendat.chatappserver.dto.response.ChatResponse;
+import com.nguyendat.chatappserver.dto.response.CursorPageResponse;
 import com.nguyendat.chatappserver.enums.ResponseCode;
 import com.nguyendat.chatappserver.model.User;
 import com.nguyendat.chatappserver.service.ChatService;
@@ -28,15 +29,13 @@ public class DirectChatController {
   }
 
   @GetMapping
-  public ResponseEntity<?> getMyChats() {
-    // ...
-    return null;
-  }
+  public ResponseEntity<ApiResponse<CursorPageResponse<ChatResponse>>> getMyChats(
+      @AuthenticationPrincipal User currentUser,
+      @RequestParam(required = false) String cursor,
+      @RequestParam(defaultValue = "20") int limit) {
 
-  @GetMapping("/{chatId}")
-  public ResponseEntity<?> getChatById(@PathVariable Long chatId) {
-    return null;
+    CursorPageResponse<ChatResponse> result = chatService.getMyChats(currentUser, cursor, limit);
 
-    // ...
+    return ResponseEntity.ok(ApiResponse.success(ResponseCode.CHAT_LIST_RETRIEVED, result));
   }
 }
