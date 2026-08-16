@@ -21,6 +21,10 @@ public enum ResponseCode {
   USER_UNBLOCKED(1012, "Đã bỏ chặn người dùng"),
   BLOCKED_USERS_RETRIEVED(1013, "Lấy danh sách người dùng bị chặn thành công"),
   DIRECT_CHAT_RETRIEVED(1014, "Lấy hoặc tạo cuộc trò chuyện trực tiếp thành công"),
+  CHAT_LIST_RETRIEVED(1015, "Lấy danh sách cuộc trò chuyện thành công"),
+  MESSAGE_HISTORY_RETRIEVED(1016, "Lấy lịch sử tin nhắn thành công"),
+  MESSAGE_SENT(1017, "Gửi tin nhắn thành công"),
+  CHAT_RETRIEVED(1018, "Lấy thông tin cuộc trò chuyện thành công"),
   ;
 
   private final int code;
