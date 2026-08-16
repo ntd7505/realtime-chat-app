@@ -24,6 +24,7 @@ public enum ResponseCode {
   CHAT_LIST_RETRIEVED(1015, "Lấy danh sách cuộc trò chuyện thành công"),
   MESSAGE_HISTORY_RETRIEVED(1016, "Lấy lịch sử tin nhắn thành công"),
   MESSAGE_SENT(1017, "Gửi tin nhắn thành công"),
+  CHAT_RETRIEVED(1018, "Lấy thông tin cuộc trò chuyện thành công"),
   ;
 
   private final int code;
