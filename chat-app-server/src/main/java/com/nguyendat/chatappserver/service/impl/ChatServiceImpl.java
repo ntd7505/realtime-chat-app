@@ -12,7 +12,6 @@ import com.nguyendat.chatappserver.model.Message;
 import com.nguyendat.chatappserver.model.User;
 import com.nguyendat.chatappserver.repository.*;
 import com.nguyendat.chatappserver.service.ChatService;
-
 import java.nio.charset.StandardCharsets;
 import java.time.LocalDateTime;
 import java.time.format.DateTimeParseException;
@@ -22,7 +21,6 @@ import java.util.Map;
 import java.util.Optional;
 import java.util.function.Function;
 import java.util.stream.Collectors;
-
 import lombok.AccessLevel;
 import lombok.RequiredArgsConstructor;
 import lombok.experimental.FieldDefaults;
@@ -37,205 +35,186 @@ import org.springframework.transaction.annotation.Transactional;
 @FieldDefaults(level = AccessLevel.PRIVATE, makeFinal = true)
 public class ChatServiceImpl implements ChatService {
 
-    ChatRepository chatRepository;
-    UserRepository userRepository;
-    UserBlockRepository userBlockRepository;
-    FriendshipRepository friendshipRepository;
-    MessageRepository messageRepository;
-    ChatMapper chatMapper;
-    DirectChatCreator directChatCreator;
-    ChatMemberRepository chatMemberRepository;
-    static int MIN_CHAT_LIMIT = 1;
-    static int MAX_CHAT_LIMIT = 50;
+  ChatRepository chatRepository;
+  UserRepository userRepository;
+  UserBlockRepository userBlockRepository;
+  FriendshipRepository friendshipRepository;
+  MessageRepository messageRepository;
+  ChatMapper chatMapper;
+  DirectChatCreator directChatCreator;
+  ChatMemberRepository chatMemberRepository;
+  static int MIN_CHAT_LIMIT = 1;
+  static int MAX_CHAT_LIMIT = 50;
 
-    @Override
-    public ChatResponse createOrGetDirectChat(User currentUser, Long targetUserId) {
-        if (currentUser.getId().equals(targetUserId))
-            throw new AppException(ErrorCode.CANNOT_CREATE_CHAT_WITH_YOURSELF);
-        User targetUser =
-                userRepository
-                        .findById(targetUserId)
-                        .orElseThrow(() -> new AppException(ErrorCode.USER_NOT_FOUND));
+  @Override
+  public ChatResponse createOrGetDirectChat(User currentUser, Long targetUserId) {
+    if (currentUser.getId().equals(targetUserId))
+      throw new AppException(ErrorCode.CANNOT_CREATE_CHAT_WITH_YOURSELF);
+    User targetUser =
+        userRepository
+            .findById(targetUserId)
+            .orElseThrow(() -> new AppException(ErrorCode.USER_NOT_FOUND));
 
-        if (userBlockRepository.existsBlockBetween(currentUser.getId(), targetUserId))
-            throw new AppException(ErrorCode.CANNOT_CREATE_CHAT_WITH_BLOCKED_USER);
+    if (userBlockRepository.existsBlockBetween(currentUser.getId(), targetUserId))
+      throw new AppException(ErrorCode.CANNOT_CREATE_CHAT_WITH_BLOCKED_USER);
 
-        String directKey = generateDirectKey(currentUser.getId(), targetUserId);
+    String directKey = generateDirectKey(currentUser.getId(), targetUserId);
 
-        Optional<Chat> existingChat = chatRepository.findByDirectKey(directKey);
+    Optional<Chat> existingChat = chatRepository.findByDirectKey(directKey);
 
-        if (existingChat.isPresent()) {
-            return toChatResponse(existingChat.get(), targetUser);
-        }
-
-        friendshipRepository
-                .findRelationshipBetween(currentUser.getId(), targetUserId)
-                .filter(friendship -> friendship.getStatus() == FriendshipStatus.ACCEPTED)
-                .orElseThrow(() -> new AppException(ErrorCode.USERS_ARE_NOT_FRIENDS));
-
-        return chatRepository
-                .findByDirectKey(directKey)
-                .map(chat -> toChatResponse(chat, targetUser))
-                .orElseGet(() -> createOrFindChat(currentUser, targetUser, directKey));
+    if (existingChat.isPresent()) {
+      return toChatResponse(existingChat.get(), targetUser);
     }
 
-    @Override
-    @Transactional(readOnly = true)
-    public CursorPageResponse<ChatResponse> getMyChats(User currentUser, String cursor, int limit) {
+    friendshipRepository
+        .findRelationshipBetween(currentUser.getId(), targetUserId)
+        .filter(friendship -> friendship.getStatus() == FriendshipStatus.ACCEPTED)
+        .orElseThrow(() -> new AppException(ErrorCode.USERS_ARE_NOT_FRIENDS));
 
-        validateLimit(limit);
+    return chatRepository
+        .findByDirectKey(directKey)
+        .map(chat -> toChatResponse(chat, targetUser))
+        .orElseGet(() -> createOrFindChat(currentUser, targetUser, directKey));
+  }
 
-        ChatCursor decodedCursor = decodeCursor(cursor);
+  @Override
+  @Transactional(readOnly = true)
+  public CursorPageResponse<ChatResponse> getMyChats(User currentUser, String cursor, int limit) {
 
-        Pageable pageable = PageRequest.of(0, limit + 1);
+    validateLimit(limit);
 
-        List<ChatMember> members =
-                chatMemberRepository.findDirectChatsByUserId(
-                        currentUser.getId(), decodedCursor.time(), decodedCursor.chatId(), pageable);
+    ChatCursor decodedCursor = decodeCursor(cursor);
 
-        boolean hasNext = members.size() > limit;
+    Pageable pageable = PageRequest.of(0, limit + 1);
 
-        List<ChatMember> pageMembers = members.stream().limit(limit).toList();
+    List<ChatMember> members =
+        chatMemberRepository.findDirectChatsByUserId(
+            currentUser.getId(), decodedCursor.time(), decodedCursor.chatId(), pageable);
 
-        List<Long> chatIds = pageMembers.stream().map(chatMember -> chatMember.getChat().getId()).toList();
+    boolean hasNext = members.size() > limit;
 
-        List<Message> lastMessages = chatIds.isEmpty() ? List.of() : messageRepository.findLatestMessagesByChatIds(chatIds);
+    List<ChatMember> pageMembers = members.stream().limit(limit).toList();
 
-        Map<Long, Message> lastMessageByChatId = lastMessages.stream()
-                .collect(Collectors.toMap(
-                        message -> message.getChat().getId(),
-                        Function.identity()
-                ));
+    List<Long> chatIds =
+        pageMembers.stream().map(chatMember -> chatMember.getChat().getId()).toList();
 
-        List<ChatResponse> items =
-                pageMembers.stream()
-                        .map(member -> {
-                            Chat chat = member.getChat();
+    List<Message> lastMessages =
+        chatIds.isEmpty() ? List.of() : messageRepository.findLatestMessagesByChatIds(chatIds);
 
-                            Message lastMessage =
-                                    lastMessageByChatId.get(chat.getId());
+    Map<Long, Message> lastMessageByChatId =
+        lastMessages.stream()
+            .collect(Collectors.toMap(message -> message.getChat().getId(), Function.identity()));
 
-                            return chatMapper.toChatResponse(
-                                    chat,
-                                    member.getUser(),
-                                    lastMessage
-                            );
-                        })
-                        .toList();
+    List<ChatResponse> items =
+        pageMembers.stream()
+            .map(
+                member -> {
+                  Chat chat = member.getChat();
 
-        String nextCursor = null;
+                  Message lastMessage = lastMessageByChatId.get(chat.getId());
 
-        if (hasNext && !pageMembers.isEmpty()) {
-            Chat lastChat = pageMembers.getLast().getChat();
+                  return chatMapper.toChatResponse(chat, member.getUser(), lastMessage);
+                })
+            .toList();
 
-            LocalDateTime sortTime =
-                    lastChat.getLastMessageAt() != null
-                            ? lastChat.getLastMessageAt()
-                            : lastChat.getCreatedAt();
+    String nextCursor = null;
 
-            nextCursor = encodeCursor(new ChatCursor(sortTime, lastChat.getId()));
-        }
+    if (hasNext && !pageMembers.isEmpty()) {
+      Chat lastChat = pageMembers.getLast().getChat();
 
-        return CursorPageResponse.<ChatResponse>builder()
-                .items(items)
-                .nextCursor(nextCursor)
-                .hasNext(hasNext)
-                .build();
+      LocalDateTime sortTime =
+          lastChat.getLastMessageAt() != null
+              ? lastChat.getLastMessageAt()
+              : lastChat.getCreatedAt();
+
+      nextCursor = encodeCursor(new ChatCursor(sortTime, lastChat.getId()));
     }
 
-    @Override
-    @Transactional(readOnly = true)
-    public ChatResponse getChatById(User currentUser, Long chatId) {
+    return CursorPageResponse.<ChatResponse>builder()
+        .items(items)
+        .nextCursor(nextCursor)
+        .hasNext(hasNext)
+        .build();
+  }
 
-        ChatMember otherMember =
-                chatMemberRepository
-                        .findDirectChatForUser(
-                                chatId,
-                                currentUser.getId())
-                        .orElseThrow(
-                                () -> new AppException(ErrorCode.CHAT_NOT_FOUND));
+  @Override
+  @Transactional(readOnly = true)
+  public ChatResponse getChatById(User currentUser, Long chatId) {
 
-        return toChatResponse(
-                otherMember.getChat(),
-                otherMember.getUser());
+    ChatMember otherMember =
+        chatMemberRepository
+            .findDirectChatForUser(chatId, currentUser.getId())
+            .orElseThrow(() -> new AppException(ErrorCode.CHAT_NOT_FOUND));
+
+    return toChatResponse(otherMember.getChat(), otherMember.getUser());
+  }
+
+  // helper
+  private String generateDirectKey(Long firstUserId, Long secondUserId) {
+    long firstId = Math.min(firstUserId, secondUserId);
+    long secondId = Math.max(firstUserId, secondUserId);
+    return firstId + ":" + secondId;
+  }
+
+  private void validateLimit(int limit) {
+    if (limit < MIN_CHAT_LIMIT || limit > MAX_CHAT_LIMIT) {
+      throw new AppException(ErrorCode.INVALID_REQUEST);
+    }
+  }
+
+  private String encodeCursor(ChatCursor cursor) {
+    String rawCursor = cursor.time() + "|" + cursor.chatId();
+
+    return Base64.getUrlEncoder()
+        .withoutPadding()
+        .encodeToString(rawCursor.getBytes(StandardCharsets.UTF_8));
+  }
+
+  private ChatCursor decodeCursor(String cursor) {
+    if (cursor == null || cursor.isBlank()) {
+      return new ChatCursor(null, null);
     }
 
-    // helper
-    private String generateDirectKey(Long firstUserId, Long secondUserId) {
-        long firstId = Math.min(firstUserId, secondUserId);
-        long secondId = Math.max(firstUserId, secondUserId);
-        return firstId + ":" + secondId;
+    try {
+      String rawCursor = new String(Base64.getUrlDecoder().decode(cursor), StandardCharsets.UTF_8);
+      String[] parts = rawCursor.split("\\|", -1);
+
+      if (parts.length != 2) {
+        throw new IllegalArgumentException("Invalid cursor structure");
+      }
+
+      LocalDateTime time = LocalDateTime.parse(parts[0]);
+      Long chatId = Long.parseLong(parts[1]);
+
+      if (chatId <= 0) throw new IllegalArgumentException("Invalid chat id");
+
+      return new ChatCursor(time, chatId);
+
+    } catch (IllegalArgumentException | DateTimeParseException exception) {
+      throw new AppException(ErrorCode.INVALID_REQUEST);
     }
+  }
 
-    private void validateLimit(int limit) {
-        if (limit < MIN_CHAT_LIMIT || limit > MAX_CHAT_LIMIT) {
-            throw new AppException(ErrorCode.INVALID_REQUEST);
-        }
+  private ChatResponse createOrFindChat(User currentUser, User targetUser, String directKey) {
+    try {
+      Chat chat = directChatCreator.create(currentUser, targetUser, directKey);
+
+      return chatMapper.toChatResponse(chat, targetUser, null);
+
+    } catch (DataIntegrityViolationException exception) {
+      return chatRepository
+          .findByDirectKey(directKey)
+          .map(chat -> toChatResponse(chat, targetUser))
+          .orElseThrow(() -> exception);
     }
+  }
 
-    private String encodeCursor(ChatCursor cursor) {
-        String rawCursor = cursor.time() + "|" + cursor.chatId();
+  private ChatResponse toChatResponse(Chat chat, User otherUser) {
+    Message lastMessage =
+        messageRepository.findFirstByChat_IdOrderByIdDesc(chat.getId()).orElse(null);
 
-        return Base64.getUrlEncoder()
-                .withoutPadding()
-                .encodeToString(rawCursor.getBytes(StandardCharsets.UTF_8));
-    }
+    return chatMapper.toChatResponse(chat, otherUser, lastMessage);
+  }
 
-    private ChatCursor decodeCursor(String cursor) {
-        if (cursor == null || cursor.isBlank()) {
-            return new ChatCursor(null, null);
-        }
-
-        try {
-            String rawCursor = new String(Base64.getUrlDecoder().decode(cursor), StandardCharsets.UTF_8);
-            String[] parts = rawCursor.split("\\|", -1);
-
-            if (parts.length != 2) {
-                throw new IllegalArgumentException("Invalid cursor structure");
-            }
-
-            LocalDateTime time = LocalDateTime.parse(parts[0]);
-            Long chatId = Long.parseLong(parts[1]);
-
-            if (chatId <= 0) throw new IllegalArgumentException("Invalid chat id");
-
-            return new ChatCursor(time, chatId);
-
-        } catch (IllegalArgumentException | DateTimeParseException exception) {
-            throw new AppException(ErrorCode.INVALID_REQUEST);
-        }
-    }
-
-    private ChatResponse createOrFindChat(User currentUser, User targetUser, String directKey) {
-        try {
-            Chat chat = directChatCreator.create(currentUser, targetUser, directKey);
-
-            return chatMapper.toChatResponse(chat, targetUser, null);
-
-        } catch (DataIntegrityViolationException exception) {
-            return chatRepository
-                    .findByDirectKey(directKey)
-                    .map(chat -> toChatResponse(chat, targetUser))
-                    .orElseThrow(() -> exception);
-        }
-    }
-
-    private ChatResponse toChatResponse(
-            Chat chat,
-            User otherUser
-    ) {
-        Message lastMessage =
-                messageRepository
-                        .findFirstByChat_IdOrderByIdDesc(chat.getId())
-                        .orElse(null);
-
-        return chatMapper.toChatResponse(
-                chat,
-                otherUser,
-                lastMessage
-        );
-    }
-
-    private record ChatCursor(LocalDateTime time, Long chatId) {
-    }
+  private record ChatCursor(LocalDateTime time, Long chatId) {}
 }

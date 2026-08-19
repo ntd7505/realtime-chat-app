@@ -19,37 +19,32 @@ import org.springframework.web.bind.annotation.*;
 @RequiredArgsConstructor
 public class ChatController {
 
-    ChatService chatService;
+  ChatService chatService;
 
-    @PostMapping("/direct/{userId}")
-    public ResponseEntity<ApiResponse<ChatResponse>> createOrGetDirectChat(
-            @AuthenticationPrincipal User currentUser, @PathVariable Long userId) {
-        var result = chatService.createOrGetDirectChat(currentUser, userId);
-        return ResponseEntity.ok(ApiResponse.success(ResponseCode.DIRECT_CHAT_RETRIEVED, result));
-    }
+  @PostMapping("/direct/{userId}")
+  public ResponseEntity<ApiResponse<ChatResponse>> createOrGetDirectChat(
+      @AuthenticationPrincipal User currentUser, @PathVariable Long userId) {
+    var result = chatService.createOrGetDirectChat(currentUser, userId);
+    return ResponseEntity.ok(ApiResponse.success(ResponseCode.DIRECT_CHAT_RETRIEVED, result));
+  }
 
-    @GetMapping
-    public ResponseEntity<ApiResponse<CursorPageResponse<ChatResponse>>> getMyChats(
-            @AuthenticationPrincipal User currentUser,
-            @RequestParam(required = false) String cursor,
-            @RequestParam(defaultValue = "20") int limit) {
+  @GetMapping
+  public ResponseEntity<ApiResponse<CursorPageResponse<ChatResponse>>> getMyChats(
+      @AuthenticationPrincipal User currentUser,
+      @RequestParam(required = false) String cursor,
+      @RequestParam(defaultValue = "20") int limit) {
 
-        CursorPageResponse<ChatResponse> result = chatService.getMyChats(currentUser, cursor, limit);
+    CursorPageResponse<ChatResponse> result = chatService.getMyChats(currentUser, cursor, limit);
 
-        return ResponseEntity.ok(ApiResponse.success(ResponseCode.CHAT_LIST_RETRIEVED, result));
-    }
+    return ResponseEntity.ok(ApiResponse.success(ResponseCode.CHAT_LIST_RETRIEVED, result));
+  }
 
-    @GetMapping("/{chatId}")
-    public ResponseEntity<ApiResponse<ChatResponse>> getChatById(
-            @AuthenticationPrincipal User currentUser,
-            @PathVariable Long chatId) {
+  @GetMapping("/{chatId}")
+  public ResponseEntity<ApiResponse<ChatResponse>> getChatById(
+      @AuthenticationPrincipal User currentUser, @PathVariable Long chatId) {
 
-        ChatResponse result =
-                chatService.getChatById(currentUser, chatId);
+    ChatResponse result = chatService.getChatById(currentUser, chatId);
 
-        return ResponseEntity.ok(
-                ApiResponse.success(
-                        ResponseCode.CHAT_RETRIEVED,
-                        result));
-    }
+    return ResponseEntity.ok(ApiResponse.success(ResponseCode.CHAT_RETRIEVED, result));
+  }
 }
