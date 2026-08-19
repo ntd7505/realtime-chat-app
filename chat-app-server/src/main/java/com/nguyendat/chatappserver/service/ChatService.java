@@ -6,9 +6,9 @@ import com.nguyendat.chatappserver.model.User;
 
 public interface ChatService {
 
-    ChatResponse createOrGetDirectChat(User currentUser, Long targetUserId);
+  ChatResponse createOrGetDirectChat(User currentUser, Long targetUserId);
 
-    CursorPageResponse<ChatResponse> getMyChats(User currentUser, String cursor, int limit);
+  CursorPageResponse<ChatResponse> getMyChats(User currentUser, String cursor, int limit);
 
-    ChatResponse getChatById(User currentUser, Long chatId);
+  ChatResponse getChatById(User currentUser, Long chatId);
 }

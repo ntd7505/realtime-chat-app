@@ -1,9 +1,7 @@
 package com.nguyendat.chatappserver.dto.response;
 
 import com.nguyendat.chatappserver.enums.ChatType;
-
 import java.time.LocalDateTime;
-
 import lombok.*;
 import lombok.experimental.FieldDefaults;
 
@@ -14,15 +12,15 @@ import lombok.experimental.FieldDefaults;
 @FieldDefaults(level = AccessLevel.PRIVATE)
 public class ChatResponse {
 
-    Long id;
+  Long id;
 
-    ChatType type;
+  ChatType type;
 
-    UserSummaryResponse otherUser;
+  UserSummaryResponse otherUser;
 
-    MessageResponse lastMessage;
+  MessageResponse lastMessage;
 
-    LocalDateTime lastMessageAt;
+  LocalDateTime lastMessageAt;
 
-    LocalDateTime createdAt;
+  LocalDateTime createdAt;
 }
