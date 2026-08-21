@@ -2,14 +2,8 @@ spring:
   application:
     name: chat-app-server
 
-  config:
-    import: optional:file:.env[.properties]
-
-  datasource:
-    url: ${POSTGRES_JDBC_URL}
-    username: ${POSTGRES_USER}
-    password: ${POSTGRES_PASSWORD}
-    driver-class-name: ${POSTGRES_DRIVER}
+  profiles:
+    default: dev
 
   jpa:
     hibernate:
@@ -26,5 +20,4 @@ spring:
 
 app:
   jwt:
-    secret: ${JWT_SECRET}
     access-token-expiration: 3600
