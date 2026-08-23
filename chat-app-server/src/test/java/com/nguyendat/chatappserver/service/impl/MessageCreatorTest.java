@@ -18,11 +18,9 @@ import com.nguyendat.chatappserver.model.Message;
 import com.nguyendat.chatappserver.model.User;
 import com.nguyendat.chatappserver.repository.ChatRepository;
 import com.nguyendat.chatappserver.repository.MessageRepository;
-
 import java.time.LocalDateTime;
 import java.util.Optional;
 import java.util.UUID;
-
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.ArgumentCaptor;
@@ -33,91 +31,78 @@ import org.mockito.junit.jupiter.MockitoExtension;
 @ExtendWith(MockitoExtension.class)
 class MessageCreatorTest {
 
-    @Mock
-    MessageRepository messageRepository;
-    @Mock
-    MessageMapper messageMapper;
-    @Mock
-    ChatRepository chatRepository;
+  @Mock MessageRepository messageRepository;
+  @Mock MessageMapper messageMapper;
+  @Mock ChatRepository chatRepository;
 
-    @InjectMocks
-    MessageCreator messageCreator;
+  @InjectMocks MessageCreator messageCreator;
 
-    @Test
-    void create_shouldSaveMessageAndUpdateChatLastMessageAt() {
-        User sender = user(1L, "sender@example.com", "Sender");
+  @Test
+  void create_shouldSaveMessageAndUpdateChatLastMessageAt() {
+    User sender = user(1L, "sender@example.com", "Sender");
 
-        Chat chat = new Chat();
-        chat.setId(10L);
-        chat.setType(ChatType.DIRECT);
+    Chat chat = new Chat();
+    chat.setId(10L);
+    chat.setType(ChatType.DIRECT);
 
-        SendMessageRequest request = new SendMessageRequest();
-        request.setClientMessageId(UUID.randomUUID());
-        request.setContent("Hello");
+    SendMessageRequest request = new SendMessageRequest();
+    request.setClientMessageId(UUID.randomUUID());
+    request.setContent("Hello");
 
-        LocalDateTime createdAt = LocalDateTime.of(2026, 8, 20, 10, 30);
+    LocalDateTime createdAt = LocalDateTime.of(2026, 8, 20, 10, 30);
 
-        Message savedMessage = new Message();
-        savedMessage.setId(100L);
-        savedMessage.setChat(chat);
-        savedMessage.setSender(sender);
-        savedMessage.setClientMessageId(request.getClientMessageId());
-        savedMessage.setContent(request.getContent());
-        savedMessage.setCreatedAt(createdAt);
+    Message savedMessage = new Message();
+    savedMessage.setId(100L);
+    savedMessage.setChat(chat);
+    savedMessage.setSender(sender);
+    savedMessage.setClientMessageId(request.getClientMessageId());
+    savedMessage.setContent(request.getContent());
+    savedMessage.setCreatedAt(createdAt);
 
-        MessageResponse expected =
-                MessageResponse.builder()
-                        .id(100L)
-                        .clientMessageId(request.getClientMessageId())
-                        .content("Hello")
-                        .createdAt(createdAt)
-                        .build();
+    MessageResponse expected =
+        MessageResponse.builder()
+            .id(100L)
+            .clientMessageId(request.getClientMessageId())
+            .content("Hello")
+            .createdAt(createdAt)
+            .build();
 
-        given(chatRepository.findByIdForUpdate(10L))
-                .willReturn(Optional.of(chat));
-        given(messageRepository.saveAndFlush(any(Message.class)))
-                .willReturn(savedMessage);
-        given(messageMapper.toMessageResponse(savedMessage))
-                .willReturn(expected);
+    given(chatRepository.findByIdForUpdate(10L)).willReturn(Optional.of(chat));
+    given(messageRepository.saveAndFlush(any(Message.class))).willReturn(savedMessage);
+    given(messageMapper.toMessageResponse(savedMessage)).willReturn(expected);
 
-        MessageResponse actual =
-                messageCreator.create(request, 10L, sender);
+    MessageResponse actual = messageCreator.create(request, 10L, sender);
 
-        assertThat(actual).isSameAs(expected);
-        assertThat(chat.getLastMessageAt()).isEqualTo(createdAt);
+    assertThat(actual).isSameAs(expected);
+    assertThat(chat.getLastMessageAt()).isEqualTo(createdAt);
 
-        ArgumentCaptor<Message> captor =
-                ArgumentCaptor.forClass(Message.class);
+    ArgumentCaptor<Message> captor = ArgumentCaptor.forClass(Message.class);
 
-        then(messageRepository).should().saveAndFlush(captor.capture());
+    then(messageRepository).should().saveAndFlush(captor.capture());
 
-        Message messageToSave = captor.getValue();
+    Message messageToSave = captor.getValue();
 
-        assertThat(messageToSave.getChat()).isSameAs(chat);
-        assertThat(messageToSave.getSender()).isSameAs(sender);
-        assertThat(messageToSave.getClientMessageId())
-                .isEqualTo(request.getClientMessageId());
-        assertThat(messageToSave.getContent()).isEqualTo("Hello");
-    }
+    assertThat(messageToSave.getChat()).isSameAs(chat);
+    assertThat(messageToSave.getSender()).isSameAs(sender);
+    assertThat(messageToSave.getClientMessageId()).isEqualTo(request.getClientMessageId());
+    assertThat(messageToSave.getContent()).isEqualTo("Hello");
+  }
 
-    @Test
-    void create_shouldThrowChatNotFound_whenChatDoesNotExist() {
-        User sender = user(1L, "sender@example.com", "Sender");
+  @Test
+  void create_shouldThrowChatNotFound_whenChatDoesNotExist() {
+    User sender = user(1L, "sender@example.com", "Sender");
 
-        SendMessageRequest request = new SendMessageRequest();
-        request.setClientMessageId(UUID.randomUUID());
-        request.setContent("Hello");
+    SendMessageRequest request = new SendMessageRequest();
+    request.setClientMessageId(UUID.randomUUID());
+    request.setContent("Hello");
 
-        given(chatRepository.findByIdForUpdate(99L))
-                .willReturn(Optional.empty());
+    given(chatRepository.findByIdForUpdate(99L)).willReturn(Optional.empty());
 
-        assertThatThrownBy(() -> messageCreator.create(request, 99L, sender))
-                .isInstanceOfSatisfying(
-                        AppException.class,
-                        exception ->
-                                assertThat(exception.getErrorCode())
-                                        .isEqualTo(ErrorCode.CHAT_NOT_FOUND));
+    assertThatThrownBy(() -> messageCreator.create(request, 99L, sender))
+        .isInstanceOfSatisfying(
+            AppException.class,
+            exception -> assertThat(exception.getErrorCode()).isEqualTo(ErrorCode.CHAT_NOT_FOUND));
 
-        then(messageRepository).shouldHaveNoInteractions();
-    }
+    then(messageRepository).shouldHaveNoInteractions();
+  }
 }

@@ -2,9 +2,6 @@ spring:
   application:
     name: chat-app-server
 
-  profiles:
-    default: dev
-
   jpa:
     hibernate:
       ddl-auto: validate
@@ -20,4 +17,13 @@ spring:
 
 app:
   jwt:
-    access-token-expiration: 3600
+    access-token-expiration: 900 # 15 phút
+
+  refresh-token:
+    expiration: 2592000 # 30 ngày
+    cookie:
+      name: refresh_token
+      path: /auth
+      http-only: true
+      same-site: strict
+      secure: true

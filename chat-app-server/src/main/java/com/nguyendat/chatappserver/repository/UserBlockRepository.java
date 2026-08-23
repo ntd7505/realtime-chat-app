@@ -1,9 +1,7 @@
 package com.nguyendat.chatappserver.repository;
 
 import com.nguyendat.chatappserver.model.UserBlock;
-
 import java.util.List;
-
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Modifying;
 import org.springframework.data.jpa.repository.Query;
@@ -13,29 +11,29 @@ import org.springframework.stereotype.Repository;
 @Repository
 public interface UserBlockRepository extends JpaRepository<UserBlock, Long> {
 
-    boolean existsByBlockerIdAndBlockedUserId(Long blockerId, Long blockedUserId);
+  boolean existsByBlockerIdAndBlockedUserId(Long blockerId, Long blockedUserId);
 
-    @Modifying
-    @Query(
-            """
+  @Modifying
+  @Query(
+      """
                     DELETE FROM UserBlock userBlock
                     WHERE userBlock.blocker.id = :blockerId
                       AND userBlock.blockedUser.id = :blockedUserId
                     """)
-    int deleteBlock(@Param("blockerId") Long blockerId, @Param("blockedUserId") Long blockedUserId);
+  int deleteBlock(@Param("blockerId") Long blockerId, @Param("blockedUserId") Long blockedUserId);
 
-    @Query(
-            """
+  @Query(
+      """
                     SELECT userBlock
                     FROM UserBlock userBlock
                     JOIN FETCH userBlock.blockedUser
                     WHERE userBlock.blocker.id = :blockerId
                     ORDER BY userBlock.createdAt DESC
                     """)
-    List<UserBlock> findAllBlockedUsers(@Param("blockerId") Long blockerId);
+  List<UserBlock> findAllBlockedUsers(@Param("blockerId") Long blockerId);
 
-    @Query(
-            """
+  @Query(
+      """
                     SELECT COUNT(userBlock) > 0
                     FROM UserBlock userBlock
                     WHERE (
@@ -47,6 +45,6 @@ public interface UserBlockRepository extends JpaRepository<UserBlock, Long> {
                             AND userBlock.blockedUser.id = :firstUserId
                           )
                     """)
-    boolean existsBlockBetween(
-            @Param("firstUserId") Long firstUserId, @Param("secondUserId") Long secondUserId);
+  boolean existsBlockBetween(
+      @Param("firstUserId") Long firstUserId, @Param("secondUserId") Long secondUserId);
 }

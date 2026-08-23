@@ -8,11 +8,11 @@ import static org.mockito.BDDMockito.then;
 import static org.mockito.Mockito.never;
 
 import com.nguyendat.chatappserver.dto.request.LoginRequest;
-import com.nguyendat.chatappserver.dto.response.LoginResponse;
 import com.nguyendat.chatappserver.enums.ErrorCode;
 import com.nguyendat.chatappserver.exception.AppException;
 import com.nguyendat.chatappserver.model.User;
 import com.nguyendat.chatappserver.repository.UserRepository;
+import com.nguyendat.chatappserver.service.AuthenticationService;
 import java.util.Optional;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
@@ -28,6 +28,7 @@ class AuthenticationServiceImplTest {
   @Mock UserRepository userRepository;
   @Mock PasswordEncoder passwordEncoder;
   @Mock JwtService jwtService;
+  @Mock RefreshTokenService refreshTokenService;
 
   @InjectMocks AuthenticationServiceImpl authenticationService;
 
@@ -42,15 +43,18 @@ class AuthenticationServiceImplTest {
       given(userRepository.findUserByEmail(request.getEmail())).willReturn(Optional.of(foundUser));
       given(passwordEncoder.matches("password123", "encoded-password")).willReturn(true);
       given(jwtService.generateAccessToken(foundUser)).willReturn("access-token");
+      given(jwtService.getAccessTokenExpiration()).willReturn(3600L);
+      given(refreshTokenService.create(foundUser)).willReturn("refresh-token");
 
-      LoginResponse response = authenticationService.login(request);
+      AuthenticationService.AuthenticationResult response = authenticationService.login(request);
 
-      assertThat(response.accessToken()).isEqualTo("access-token");
-      assertThat(response.tokenType()).isEqualTo("Bearer");
-      assertThat(response.expiresIn()).isEqualTo(3600);
-      assertThat(response.user().id()).isEqualTo(1L);
-      assertThat(response.user().email()).isEqualTo("user@example.com");
-      assertThat(response.user().displayName()).isEqualTo("Test User");
+      assertThat(response.response().accessToken()).isEqualTo("access-token");
+      assertThat(response.response().tokenType()).isEqualTo("Bearer");
+      assertThat(response.response().expiresIn()).isEqualTo(3600);
+      assertThat(response.response().user().id()).isEqualTo(1L);
+      assertThat(response.response().user().email()).isEqualTo("user@example.com");
+      assertThat(response.response().user().displayName()).isEqualTo("Test User");
+      assertThat(response.rawRefreshToken()).isEqualTo("refresh-token");
     }
 
     @Test
