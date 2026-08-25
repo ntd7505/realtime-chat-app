@@ -1,5 +1,6 @@
 package com.nguyendat.chatappserver.service.impl;
 
+import com.nguyendat.chatappserver.config.JwtProperties;
 import com.nguyendat.chatappserver.model.User;
 import io.jsonwebtoken.Claims;
 import io.jsonwebtoken.JwtException;
@@ -12,7 +13,6 @@ import javax.crypto.SecretKey;
 import lombok.AccessLevel;
 import lombok.RequiredArgsConstructor;
 import lombok.experimental.FieldDefaults;
-import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 
 @Service
@@ -20,11 +20,7 @@ import org.springframework.stereotype.Service;
 @FieldDefaults(level = AccessLevel.PRIVATE)
 public class JwtService {
 
-  @Value("${app.jwt.secret}")
-  String secret;
-
-  @Value("${app.jwt.access-token-expiration}")
-  long accessTokenExpiration;
+  private final JwtProperties jwtProperties;
 
   public String generateAccessToken(User user) {
     Instant now = Instant.now();
@@ -32,7 +28,7 @@ public class JwtService {
         .subject(String.valueOf(user.getId()))
         .claim("email", user.getEmail())
         .issuedAt(Date.from(now))
-        .expiration(Date.from(now.plusSeconds(accessTokenExpiration)))
+        .expiration(Date.from(now.plusSeconds(jwtProperties.accessTokenExpiration())))
         .signWith(getSigningKey())
         .compact();
   }
@@ -51,12 +47,16 @@ public class JwtService {
     }
   }
 
+  public long getAccessTokenExpiration() {
+    return jwtProperties.accessTokenExpiration();
+  }
+
   private Claims extractClaims(String token) {
     return Jwts.parser().verifyWith(getSigningKey()).build().parseSignedClaims(token).getPayload();
   }
 
   private SecretKey getSigningKey() {
-    byte[] keyBytes = Decoders.BASE64.decode(secret);
+    byte[] keyBytes = Decoders.BASE64.decode(jwtProperties.secret());
     return Keys.hmacShaKeyFor(keyBytes);
   }
 }

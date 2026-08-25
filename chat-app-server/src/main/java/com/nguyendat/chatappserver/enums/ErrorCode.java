@@ -68,6 +68,11 @@ public enum ErrorCode {
   MESSAGE_CONTENT_REQUIRED(2032, "Nội dung tin nhắn không được để trống", HttpStatus.BAD_REQUEST),
 
   MESSAGE_CONTENT_TOO_LONG(2033, "Nội dung tin nhắn tối đa 5000 ký tự", HttpStatus.BAD_REQUEST),
+  CANNOT_MESSAGE_BLOCKED_USER(
+      2034,
+      "Không thể gửi tin nhắn vì một trong hai người dùng đã chặn người còn lại",
+      HttpStatus.FORBIDDEN),
+  TOKEN_EXPIRED(2035, "Token đã hết hạn", HttpStatus.UNAUTHORIZED),
   ;
 
   private final int code;

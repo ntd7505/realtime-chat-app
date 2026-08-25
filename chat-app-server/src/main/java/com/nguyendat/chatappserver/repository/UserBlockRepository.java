@@ -34,17 +34,17 @@ public interface UserBlockRepository extends JpaRepository<UserBlock, Long> {
 
   @Query(
       """
-            SELECT COUNT(userBlock) > 0
-            FROM UserBlock userBlock
-            WHERE (
-                    userBlock.blocker.id = :firstUserId
-                    AND userBlock.blockedUser.id = :secondUserId
-                  )
-               OR (
-                    userBlock.blocker.id = :secondUserId
-                    AND userBlock.blockedUser.id = :firstUserId
-                  )
-            """)
+                    SELECT COUNT(userBlock) > 0
+                    FROM UserBlock userBlock
+                    WHERE (
+                            userBlock.blocker.id = :firstUserId
+                            AND userBlock.blockedUser.id = :secondUserId
+                          )
+                       OR (
+                            userBlock.blocker.id = :secondUserId
+                            AND userBlock.blockedUser.id = :firstUserId
+                          )
+                    """)
   boolean existsBlockBetween(
       @Param("firstUserId") Long firstUserId, @Param("secondUserId") Long secondUserId);
 }

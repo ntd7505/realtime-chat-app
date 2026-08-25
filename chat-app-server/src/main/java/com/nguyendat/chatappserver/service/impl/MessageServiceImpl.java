@@ -6,10 +6,12 @@ import com.nguyendat.chatappserver.dto.response.MessageResponse;
 import com.nguyendat.chatappserver.enums.ErrorCode;
 import com.nguyendat.chatappserver.exception.AppException;
 import com.nguyendat.chatappserver.mapper.MessageMapper;
+import com.nguyendat.chatappserver.model.ChatMember;
 import com.nguyendat.chatappserver.model.Message;
 import com.nguyendat.chatappserver.model.User;
 import com.nguyendat.chatappserver.repository.ChatMemberRepository;
 import com.nguyendat.chatappserver.repository.MessageRepository;
+import com.nguyendat.chatappserver.repository.UserBlockRepository;
 import com.nguyendat.chatappserver.service.MessageService;
 import java.nio.charset.StandardCharsets;
 import java.util.Base64;
@@ -33,6 +35,7 @@ public class MessageServiceImpl implements MessageService {
   MessageRepository messageRepository;
   MessageMapper messageMapper;
   MessageCreator messageCreator;
+  UserBlockRepository userBlockRepository;
   private static final int MIN_MESSAGE_LIMIT = 1;
   private static final int MAX_MESSAGE_LIMIT = 50;
 
@@ -82,8 +85,15 @@ public class MessageServiceImpl implements MessageService {
 
     Long senderId = currentUser.getId();
 
-    if (!chatMemberRepository.existsByChat_IdAndUser_Id(chatId, senderId)) {
-      throw new AppException(ErrorCode.CHAT_NOT_FOUND);
+    ChatMember otherMember =
+        chatMemberRepository
+            .findDirectChatForUser(chatId, senderId)
+            .orElseThrow(() -> new AppException(ErrorCode.CHAT_NOT_FOUND));
+
+    Long recipientId = otherMember.getUser().getId();
+
+    if (userBlockRepository.existsBlockBetween(senderId, recipientId)) {
+      throw new AppException(ErrorCode.CANNOT_MESSAGE_BLOCKED_USER);
     }
 
     Optional<Message> message =
