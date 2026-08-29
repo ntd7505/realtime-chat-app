@@ -8,6 +8,30 @@ const backendUrl = 'http://localhost:8080';
 export default defineConfig({
   plugins: [tailwindcss(), react()],
 
+  // sockjs-client still references Node's `global` identifier in its browser bundle.
+  // Map it to the browser global before Vite transforms application dependencies.
+  define: {
+    global: 'globalThis',
+  },
+
+  optimizeDeps: {
+    rolldownOptions: {
+      plugins: [
+        {
+          name: 'sockjs-browser-global',
+          transform(code, id) {
+            if (!id.includes('sockjs-client')) return null;
+
+            return {
+              code: code.replace(/\bglobal\b/g, 'globalThis'),
+              map: null,
+            };
+          },
+        },
+      ],
+    },
+  },
+
   resolve: {
     alias: {
       '@': path.resolve(import.meta.dirname, './src'),
