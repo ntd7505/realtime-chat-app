@@ -3,9 +3,10 @@ import { useQueryClient } from '@tanstack/react-query';
 import { useAuthStore } from '@/features/auth/authStore';
 import { useStomp } from '@/lib/websocket/stompContext';
 import { useMessages, chatKeys } from '@/features/chat/hooks/useChats';
-import { WarningCircle, ChatCircleDots, UserCircle } from '@phosphor-icons/react';
+import { WarningCircle, ChatCircleDots } from '@phosphor-icons/react';
 import { cn } from '@/lib/utils';
 import type { Message } from '@/features/chat/chat.types';
+import { Avatar } from '@/components/ui/Avatar';
 
 interface MessageTimelineProps {
   chatId: number;
@@ -122,16 +123,15 @@ export const MessageTimeline = ({ chatId }: MessageTimelineProps) => {
               isMe ? "items-end self-end" : "items-start self-start"
             )}>
               <div className={cn("flex items-end gap-3 w-full", isMe ? "flex-row-reverse" : "flex-row")}>
-                {!isMe && (
-                  <div className="w-8 h-8 flex-shrink-0 mb-1 rounded-full bg-zinc-200 flex items-center justify-center overflow-hidden">
-                    {showAvatar ? (
-                      message.sender.avatarUrl ? (
-                        <img src={message.sender.avatarUrl} alt={message.sender.displayName} className="w-full h-full object-cover" />
-                      ) : (
-                        <UserCircle size={20} className="text-zinc-400" weight="fill" />
-                      )
-                    ) : null}
-                  </div>
+                {!isMe && showAvatar && (
+                  <Avatar 
+                    name={message.sender.displayName} 
+                    url={message.sender.avatarUrl} 
+                    className="w-8 h-8 flex-shrink-0 mb-1" 
+                  />
+                )}
+                {!isMe && !showAvatar && (
+                  <div className="w-8 h-8 flex-shrink-0 mb-1" />
                 )}
 
                 <div className={cn(
