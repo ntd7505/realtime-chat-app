@@ -19,7 +19,7 @@ const validateLimit = (limit: number) => {
   }
 };
 
-const validateMessage = ({ clientMessageId, content }: SendMessageRequest) => {
+export const validateSendMessageRequest = ({ clientMessageId, content }: SendMessageRequest) => {
   if (!UUID_PATTERN.test(clientMessageId)) {
     throw new TypeError('clientMessageId must be a valid UUID');
   }
@@ -63,7 +63,7 @@ export const chatApi = {
   },
 
   sendMessage: async (chatId: number, request: SendMessageRequest): Promise<Message> => {
-    validateMessage(request);
+    validateSendMessageRequest(request);
     const response = await apiClient.post<ApiResponse<Message>>(
       `/chats/${chatId}/messages`,
       request

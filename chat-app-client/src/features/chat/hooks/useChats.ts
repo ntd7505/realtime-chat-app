@@ -1,7 +1,8 @@
 import { useInfiniteQuery, useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useAuthStore } from '@/features/auth/authStore';
+import { useStomp } from '@/lib/websocket/stompContext';
 import type { SendMessageRequest } from '../chat.types';
-import { chatApi } from '../api/chatApi';
+import { chatApi, validateSendMessageRequest } from '../api/chatApi';
 import { chatKeys } from '../chat.keys';
 
 export { chatKeys } from '../chat.keys';
@@ -61,21 +62,73 @@ interface SendMessageVariables extends SendMessageRequest {
 }
 
 export const useSendMessage = () => {
+  const { publish, subscribe } = useStomp();
   const queryClient = useQueryClient();
   const userId = useAuthStore((state) => state.user?.id ?? 0);
 
   return useMutation({
-    mutationFn: ({ chatId, ...request }: SendMessageVariables) =>
-      chatApi.sendMessage(chatId, request),
-    onSuccess: async (_message, { chatId }) => {
-      await Promise.all([
-        queryClient.invalidateQueries({ queryKey: chatKeys.messages(userId, chatId) }),
-        queryClient.invalidateQueries({ queryKey: chatKeys.lists(userId) }),
-        queryClient.invalidateQueries({
-          queryKey: chatKeys.detail(userId, chatId),
-          exact: true,
-        }),
-      ]);
+    mutationFn: ({ chatId, ...request }: SendMessageVariables) => {
+      if (!Number.isInteger(chatId) || chatId <= 0) {
+        throw new TypeError('chatId must be a positive integer');
+      }
+      validateSendMessageRequest(request);
+
+      return new Promise<void>((resolve, reject) => {
+        const topic = `/topic/chats/${chatId}`;
+        let unsubscribe: () => void = () => {};
+
+        const timeoutId = window.setTimeout(async () => {
+          unsubscribe();
+
+          try {
+            const latestMessages = await chatApi.getMessages(chatId, { limit: 30 });
+            await Promise.all([
+              queryClient.invalidateQueries({ queryKey: chatKeys.messages(userId, chatId) }),
+              queryClient.invalidateQueries({ queryKey: chatKeys.lists(userId) }),
+            ]);
+
+            const wasPersisted = latestMessages.items.some(
+              (message) => message.clientMessageId === request.clientMessageId
+            );
+
+            if (wasPersisted) {
+              resolve();
+              return;
+            }
+
+            reject(new Error('The server did not confirm the message in time'));
+          } catch (error) {
+            reject(error);
+          }
+        }, 10_000);
+
+        unsubscribe = subscribe(topic, (frame) => {
+          let receivedClientMessageId: string | undefined;
+
+          try {
+            receivedClientMessageId = (JSON.parse(frame.body) as { clientMessageId?: string })
+              .clientMessageId;
+          } catch {
+            return;
+          }
+
+          if (receivedClientMessageId !== request.clientMessageId) {
+            return;
+          }
+
+          window.clearTimeout(timeoutId);
+          unsubscribe();
+          resolve();
+        });
+
+        try {
+          publish(`/app/chats/${chatId}/messages`, JSON.stringify(request));
+        } catch (error) {
+          window.clearTimeout(timeoutId);
+          unsubscribe();
+          reject(error);
+        }
+      });
     },
   });
 };
