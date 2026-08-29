@@ -11,13 +11,14 @@ import org.mapstruct.ReportingPolicy;
 @Mapper(componentModel = "spring", unmappedTargetPolicy = ReportingPolicy.ERROR)
 public interface UserMapper {
 
-  @Mapping(target = "id", ignore = true)
-  @Mapping(target = "password", ignore = true)
-  @Mapping(target = "createdAt", ignore = true)
-  @Mapping(target = "updatedAt", ignore = true)
-  User toUser(RegisterRequest request);
+    @Mapping(target = "id", ignore = true)
+    @Mapping(target = "avatarPublicId", ignore = true)
+    @Mapping(target = "password", ignore = true)
+    @Mapping(target = "createdAt", ignore = true)
+    @Mapping(target = "updatedAt", ignore = true)
+    User toUser(RegisterRequest request);
 
-  UserResponse toUserResponse(User user);
+    UserResponse toUserResponse(User user);
 
-  UserSummaryResponse toUserSummaryResponse(User user);
+    UserSummaryResponse toUserSummaryResponse(User user);
 }
