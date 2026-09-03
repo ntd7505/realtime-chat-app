@@ -1,51 +1,96 @@
 import { createBrowserRouter, Navigate } from 'react-router-dom';
 import { ProtectedRoute } from '../routes/ProtectedRoute';
 import { PublicRoute } from '../routes/PublicRoute';
-import { LoginPage } from '../features/auth/pages/LoginPage';
-import { RegisterPage } from '../features/auth/pages/RegisterPage';
-import { ProfilePage } from '../features/users/pages/ProfilePage';
-import { UserSearchPage } from '../features/users/pages/UserSearchPage';
-import { UserDetailPage } from '../features/users/pages/UserDetailPage';
-import { ChatPage } from '../features/chat/pages/ChatPage';
+import { RootLayout } from '../components/layout/RootLayout';
+import { AppLayout } from '../components/layout/AppLayout';
+import { ErrorState } from '../components/ui/ErrorState';
 
 export const router = createBrowserRouter([
   {
-    path: '/',
-    element: <ProtectedRoute />,
+    element: <RootLayout />,
+    errorElement: (
+      <div className="flex items-center justify-center min-h-screen bg-[#d8eee2] p-4">
+        <ErrorState title="Oops!" message="An unexpected error occurred." />
+      </div>
+    ),
     children: [
       {
         path: '/',
-        element: <Navigate to="/chat" replace />,
+        element: <ProtectedRoute />,
+        children: [
+          {
+            element: <AppLayout />,
+            children: [
+              {
+                path: '/',
+                element: <Navigate to="/chat" replace />,
+              },
+              {
+                path: '/users',
+                lazy: async () => {
+                  const { UserSearchPage } = await import('../features/users/pages/UserSearchPage');
+                  return { Component: UserSearchPage };
+                },
+              },
+              {
+                path: '/users/:userId',
+                lazy: async () => {
+                  const { UserDetailPage } = await import('../features/users/pages/UserDetailPage');
+                  return { Component: UserDetailPage };
+                },
+              },
+              {
+                path: '/profile',
+                lazy: async () => {
+                  const { ProfilePage } = await import('../features/users/pages/ProfilePage');
+                  return { Component: ProfilePage };
+                },
+              },
+              {
+                path: '/chat',
+                lazy: async () => {
+                  const { ChatPage } = await import('../features/chat/pages/ChatPage');
+                  return { Component: ChatPage };
+                },
+              },
+              {
+                path: '/connections',
+                lazy: async () => {
+                  const { ConnectionsPage } = await import('../features/friends/pages/ConnectionsPage');
+                  return { Component: ConnectionsPage };
+                },
+              },
+            ],
+          },
+        ],
       },
       {
-        path: '/users',
-        element: <UserSearchPage />,
+        element: <PublicRoute />,
+        children: [
+          {
+            path: '/login',
+            lazy: async () => {
+              const { LoginPage } = await import('../features/auth/pages/LoginPage');
+              return { Component: LoginPage };
+            },
+          },
+          {
+            path: '/register',
+            lazy: async () => {
+              const { RegisterPage } = await import('../features/auth/pages/RegisterPage');
+              return { Component: RegisterPage };
+            },
+          },
+        ],
       },
       {
-        path: '/users/:userId',
-        element: <UserDetailPage />,
+        path: '*',
+        element: (
+          <div className="flex items-center justify-center min-h-[100dvh] bg-[#d8eee2] p-4 text-center">
+            <ErrorState title="404 Not Found" message="The page you are looking for doesn't exist." />
+          </div>
+        ),
       },
-      {
-        path: '/profile',
-        element: <ProfilePage />,
-      },
-      {
-        path: '/chat',
-        element: <ChatPage />,
-      }
     ],
-  },
-  {
-    element: <PublicRoute />,
-    children: [
-      {
-        path: '/login',
-        element: <LoginPage />,
-      },
-      {
-        path: '/register',
-        element: <RegisterPage />,
-      }
-    ]
   },
 ]);

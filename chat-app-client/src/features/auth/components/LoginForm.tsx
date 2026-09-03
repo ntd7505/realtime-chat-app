@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { useAuth } from '../hooks/useAuth';
 import { useNavigate } from 'react-router-dom';
 import { getApiErrorMessage } from '@/utils/error';
+import { CircleNotch, WarningCircle } from '@phosphor-icons/react';
 
 export function LoginForm() {
   const { login, isLoggingIn } = useAuth();
@@ -31,36 +32,44 @@ export function LoginForm() {
   return (
     <form onSubmit={handleSubmit} className="space-y-4">
       {errorMsg && (
-        <div className="p-3 text-sm text-red-600 bg-red-50 border border-red-100 rounded-md">
-          {errorMsg}
+        <div
+          className="p-3 text-xs font-medium text-rose-700 bg-rose-50 border border-rose-200 rounded-xl flex items-center gap-2"
+          role="alert"
+        >
+          <WarningCircle size={16} weight="bold" className="shrink-0 text-rose-600" aria-hidden="true" />
+          <span>{errorMsg}</span>
         </div>
       )}
 
-      <div>
-        <label className="block text-sm font-medium text-gray-700" htmlFor="email">
-          Email
+      <div className="space-y-1.5">
+        <label className="block text-xs font-semibold text-zinc-700" htmlFor="email">
+          Email address
         </label>
         <input
           id="email"
           type="email"
+          autoComplete="email"
           value={email}
           onChange={(e) => setEmail(e.target.value)}
-          className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm text-gray-900 bg-white"
+          placeholder="name@example.com"
+          className="w-full min-h-[44px] px-3.5 py-2 text-sm bg-zinc-50 border border-zinc-200 rounded-xl text-zinc-900 placeholder-zinc-400 focus:bg-white focus:border-zinc-900 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-zinc-900 transition-all duration-150 disabled:opacity-50"
           disabled={isLoggingIn}
           required
         />
       </div>
 
-      <div>
-        <label className="block text-sm font-medium text-gray-700" htmlFor="password">
+      <div className="space-y-1.5">
+        <label className="block text-xs font-semibold text-zinc-700" htmlFor="password">
           Password
         </label>
         <input
           id="password"
           type="password"
+          autoComplete="current-password"
           value={password}
           onChange={(e) => setPassword(e.target.value)}
-          className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm text-gray-900 bg-white"
+          placeholder="••••••••"
+          className="w-full min-h-[44px] px-3.5 py-2 text-sm bg-zinc-50 border border-zinc-200 rounded-xl text-zinc-900 placeholder-zinc-400 focus:bg-white focus:border-zinc-900 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-zinc-900 transition-all duration-150 disabled:opacity-50"
           disabled={isLoggingIn}
           required
         />
@@ -69,9 +78,12 @@ export function LoginForm() {
       <button
         type="submit"
         disabled={isLoggingIn}
-        className="w-full flex justify-center py-2 px-4 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-indigo-600 hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 disabled:opacity-50"
+        className="w-full min-h-[44px] inline-flex items-center justify-center gap-2 py-2.5 px-4 rounded-xl text-sm font-semibold text-white bg-zinc-900 hover:bg-black transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-zinc-900 disabled:opacity-50 shadow-xs active:scale-[0.98] mt-2"
       >
-        {isLoggingIn ? 'Signing in...' : 'Sign In'}
+        {isLoggingIn && (
+          <CircleNotch size={16} weight="bold" className="animate-spin" aria-hidden="true" />
+        )}
+        <span>{isLoggingIn ? 'Signing in...' : 'Sign In'}</span>
       </button>
     </form>
   );

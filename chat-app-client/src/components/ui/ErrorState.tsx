@@ -1,26 +1,40 @@
+import { WarningCircle, ArrowCounterClockwise } from '@phosphor-icons/react';
+import { cn } from '@/lib/utils';
 
 interface ErrorStateProps {
   title?: string;
   message: string;
   onRetry?: () => void;
+  className?: string;
 }
 
-export function ErrorState({ title = 'Error', message, onRetry }: ErrorStateProps) {
+export function ErrorState({
+  title = 'Something went wrong',
+  message,
+  onRetry,
+  className = '',
+}: ErrorStateProps) {
   return (
-    <div className="flex flex-col items-center justify-center p-6 text-center bg-red-50 rounded-lg border border-red-100">
-      <div className="text-red-500 mb-2">
-        <svg className="w-8 h-8 mx-auto" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
-        </svg>
+    <div
+      role="alert"
+      className={cn(
+        "flex flex-col items-center justify-center p-8 text-center rounded-2xl bg-rose-50/60 border border-rose-100 max-w-md mx-auto my-4 shadow-2xs",
+        className
+      )}
+    >
+      <div className="w-12 h-12 rounded-full bg-rose-100 flex items-center justify-center text-rose-600 mb-3" aria-hidden="true">
+        <WarningCircle size={24} weight="bold" />
       </div>
-      <h3 className="text-lg font-medium text-red-800">{title}</h3>
-      <p className="mt-1 text-sm text-red-600">{message}</p>
+      <h3 className="text-base font-semibold text-zinc-900">{title}</h3>
+      <p className="mt-1 text-sm text-zinc-600 max-w-sm">{message}</p>
       {onRetry && (
         <button
+          type="button"
           onClick={onRetry}
-          className="mt-4 px-4 py-2 text-sm font-medium text-red-700 bg-red-100 rounded-md hover:bg-red-200 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-red-500"
+          className="mt-5 inline-flex items-center gap-2 min-h-[44px] px-4 py-2 text-sm font-semibold text-zinc-900 bg-white border border-zinc-200 rounded-xl hover:bg-zinc-50 transition-colors shadow-xs focus-visible:ring-2 focus-visible:ring-zinc-900 focus-visible:outline-none"
         >
-          Try again
+          <ArrowCounterClockwise size={16} weight="bold" aria-hidden="true" />
+          <span>Try again</span>
         </button>
       )}
     </div>

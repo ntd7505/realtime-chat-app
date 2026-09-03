@@ -1,7 +1,8 @@
-import { CaretLeft } from '@phosphor-icons/react';
-import { useSearchParams } from 'react-router-dom';
+import { CaretLeft, User } from '@phosphor-icons/react';
+import { useSearchParams, Link } from 'react-router-dom';
 import { useChat } from '@/features/chat/hooks/useChats';
 import { Avatar } from '@/components/ui/Avatar';
+
 interface ChatHeaderProps {
   chatId: number;
 }
@@ -18,11 +19,15 @@ export const ChatHeader = ({ chatId }: ChatHeaderProps) => {
 
   if (isLoading) {
     return (
-      <header className="h-[72px] md:h-[88px] flex items-center px-4 md:px-8 border-b border-zinc-200/50 bg-white/40 flex-shrink-0 animate-pulse">
-        <div className="w-10 h-10 md:w-12 md:h-12 rounded-full bg-zinc-200/60" />
-        <div className="ml-4 flex flex-col gap-2">
-          <div className="w-32 h-4 bg-zinc-200/60 rounded" />
-          <div className="w-16 h-3 bg-zinc-100/60 rounded" />
+      <header
+        className="h-[68px] md:h-[76px] flex items-center px-4 md:px-6 border-b border-zinc-200/60 bg-white/80 backdrop-blur-md shrink-0 animate-pulse"
+        role="status"
+        aria-label="Loading chat details"
+      >
+        <div className="w-10 h-10 md:w-11 md:h-11 rounded-full bg-zinc-200/70" />
+        <div className="ml-3.5 flex flex-col gap-2">
+          <div className="w-32 h-4 bg-zinc-200/70 rounded" />
+          <div className="w-16 h-3 bg-zinc-100/70 rounded" />
         </div>
       </header>
     );
@@ -30,46 +35,70 @@ export const ChatHeader = ({ chatId }: ChatHeaderProps) => {
 
   if (isError || !chat) {
     return (
-      <header className="h-[72px] md:h-[88px] flex items-center px-4 md:px-8 border-b border-zinc-200/50 bg-white/40 flex-shrink-0">
-        <button
-          onClick={handleBack}
-          className="md:hidden mr-3 text-zinc-500 hover:text-zinc-900"
-        >
-          <CaretLeft size={24} weight="bold" />
-        </button>
-        <span className="text-sm font-medium text-rose-500">Failed to load chat</span>
+      <header className="h-[68px] md:h-[76px] flex items-center px-4 md:px-6 border-b border-zinc-200/60 bg-white/80 backdrop-blur-md shrink-0 justify-between">
+        <div className="flex items-center gap-2">
+          <button
+            type="button"
+            onClick={handleBack}
+            className="md:hidden min-w-[44px] min-h-[44px] -ml-2 rounded-xl flex items-center justify-center text-zinc-500 hover:text-zinc-900 hover:bg-zinc-100 transition-colors focus-visible:ring-2 focus-visible:ring-zinc-900 focus-visible:outline-none"
+            aria-label="Back to conversations"
+          >
+            <CaretLeft size={22} weight="bold" />
+          </button>
+          <span className="text-xs font-semibold text-rose-600" role="alert">
+            Failed to load conversation details
+          </span>
+        </div>
       </header>
     );
   }
 
   return (
-    <header className="h-[72px] md:h-[88px] flex items-center justify-between px-4 md:px-8 border-b border-zinc-200/50 bg-white/40 flex-shrink-0">
-      <div className="flex items-center gap-3 md:gap-4">
+    <header className="h-[68px] md:h-[76px] flex items-center justify-between px-4 md:px-6 border-b border-zinc-200/60 bg-white/80 backdrop-blur-md shrink-0 z-10">
+      <div className="flex items-center gap-2 sm:gap-3">
         {/* Mobile Back Button */}
         <button
+          type="button"
           onClick={handleBack}
-          className="md:hidden p-2 -ml-2 text-zinc-500 hover:text-zinc-900 hover:bg-white/60 rounded-lg transition-colors"
+          className="md:hidden min-w-[44px] min-h-[44px] -ml-2 rounded-xl flex items-center justify-center text-zinc-500 hover:text-zinc-900 hover:bg-zinc-100 transition-colors focus-visible:ring-2 focus-visible:ring-zinc-900 focus-visible:outline-none"
           aria-label="Back to conversations"
         >
-          <CaretLeft size={24} weight="bold" />
+          <CaretLeft size={22} weight="bold" />
         </button>
 
-        <Avatar 
-          name={chat.otherUser.displayName} 
-          url={chat.otherUser.avatarUrl} 
-          className="w-10 h-10 md:w-12 md:h-12" 
-        />
-        <div>
-          <h2 className="text-base md:text-[18px] font-medium text-zinc-900 leading-tight">
-            {chat.otherUser.displayName}
-          </h2>
-        </div>
+        <Link
+          to={`/users/${chat.otherUser.id}`}
+          className="flex items-center gap-3 group rounded-xl p-1 -m-1 focus-visible:ring-2 focus-visible:ring-zinc-900 focus-visible:outline-none"
+          title={`View ${chat.otherUser.displayName}'s profile`}
+        >
+          <Avatar
+            name={chat.otherUser.displayName}
+            url={chat.otherUser.avatarUrl}
+            className="w-10 h-10 md:w-11 md:h-11 shrink-0"
+            isOnline={true}
+          />
+          <div className="flex flex-col">
+            <h2 className="text-sm md:text-base font-semibold text-zinc-900 leading-tight group-hover:text-black transition-colors">
+              {chat.otherUser.displayName}
+            </h2>
+            <span className="text-[11px] text-emerald-600 font-medium flex items-center gap-1 mt-0.5">
+              <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" aria-hidden="true" />
+              Online
+            </span>
+          </div>
+        </Link>
       </div>
 
-      <div className="flex items-center gap-2">
-        {/* Actions removed because they are unsupported */}
+      <div className="flex items-center gap-1">
+        <Link
+          to={`/users/${chat.otherUser.id}`}
+          className="min-w-[44px] min-h-[44px] w-11 h-11 rounded-xl flex items-center justify-center text-zinc-400 hover:text-zinc-900 hover:bg-zinc-100 transition-colors focus-visible:ring-2 focus-visible:ring-zinc-900 focus-visible:outline-none"
+          aria-label={`View ${chat.otherUser.displayName}'s profile`}
+          title="View profile"
+        >
+          <User size={20} weight="bold" aria-hidden="true" />
+        </Link>
       </div>
     </header>
   );
 };
-

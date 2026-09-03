@@ -1,7 +1,7 @@
 import { useInfiniteQuery, useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useAuthStore } from '@/features/auth/authStore';
 import { useStomp } from '@/lib/websocket/stompContext';
-import type { SendMessageRequest } from '../chat.types';
+import type { SendMessageRequest, Message } from '../chat.types';
 import { chatApi, validateSendMessageRequest } from '../api/chatApi';
 import { chatKeys } from '../chat.keys';
 
@@ -130,5 +130,73 @@ export const useSendMessage = () => {
         }
       });
     },
+    onMutate: async (variables) => {
+      await queryClient.cancelQueries({ queryKey: chatKeys.messages(userId, variables.chatId) });
+      const previousMessages = queryClient.getQueryData(chatKeys.messages(userId, variables.chatId));
+
+      const currentUser = useAuthStore.getState().user;
+      if (!currentUser) return { previousMessages };
+
+      const optimisticMessage: Message = {
+        id: Date.now(),
+        clientMessageId: variables.clientMessageId,
+        content: variables.content,
+        sender: {
+          id: currentUser.id,
+          displayName: currentUser.displayName,
+          avatarUrl: currentUser.avatarUrl,
+        },
+        createdAt: new Date().toISOString(),
+        status: 'sending'
+      };
+
+      queryClient.setQueryData(chatKeys.messages(userId, variables.chatId), (old: any) => {
+        if (!old || !old.pages) return old;
+        const newPages = [...old.pages];
+        if (newPages.length > 0) {
+          newPages[0] = {
+            ...newPages[0],
+            items: [optimisticMessage, ...newPages[0].items]
+          };
+        }
+        return { ...old, pages: newPages };
+      });
+
+      return { previousMessages, optimisticMessage };
+    },
+    onError: (_err, variables, _context: any) => {
+      queryClient.setQueryData(chatKeys.messages(userId, variables.chatId), (old: any) => {
+        if (!old || !old.pages) return old;
+        const newPages = [...old.pages];
+        if (newPages.length > 0) {
+          newPages[0] = {
+            ...newPages[0],
+            items: newPages[0].items.map((msg: Message) =>
+              msg.clientMessageId === variables.clientMessageId
+                ? { ...msg, status: 'failed' }
+                : msg
+            )
+          };
+        }
+        return { ...old, pages: newPages };
+      });
+    },
+    onSuccess: (_data, variables, _context) => {
+      queryClient.setQueryData(chatKeys.messages(userId, variables.chatId), (old: any) => {
+        if (!old || !old.pages) return old;
+        const newPages = [...old.pages];
+        if (newPages.length > 0) {
+          newPages[0] = {
+            ...newPages[0],
+            items: newPages[0].items.map((msg: Message) =>
+              msg.clientMessageId === variables.clientMessageId && msg.status === 'sending'
+                ? { ...msg, status: 'sent' }
+                : msg
+            )
+          };
+        }
+        return { ...old, pages: newPages };
+      });
+    }
   });
 };

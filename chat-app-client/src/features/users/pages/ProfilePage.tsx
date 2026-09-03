@@ -6,21 +6,21 @@ import { Avatar } from '@/components/ui/Avatar';
 import { useAuth } from '@/features/auth/hooks/useAuth';
 import { useNavigate } from 'react-router-dom';
 import { useUpdateAvatar } from '../hooks/useUpdateAvatar';
-import { Camera, WarningCircle, CheckCircle } from '@phosphor-icons/react';
+import { Camera, WarningCircle, CheckCircle, SignOut, CircleNotch, User as UserIcon, EnvelopeSimple, CalendarBlank } from '@phosphor-icons/react';
 import { cn } from '@/lib/utils';
 
 export function ProfilePage() {
   const { data: user, isLoading, isError, error, refetch } = useCurrentUser();
   const { logout, isLoggingOut } = useAuth();
   const navigate = useNavigate();
-  
+
   // Avatar upload states
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
   const [previewUrl, setPreviewUrl] = useState<string | null>(null);
   const [validationError, setValidationError] = useState<string | null>(null);
   const [successMessage, setSuccessMessage] = useState<string | null>(null);
-  
+
   const { mutate: uploadAvatar, isPending: isUploading, error: uploadError } = useUpdateAvatar();
 
   // Cleanup object URL
@@ -33,18 +33,20 @@ export function ProfilePage() {
   }, [previewUrl]);
 
   if (isLoading) {
-    return <LoadingSpinner fullCenter />;
+    return <LoadingSpinner fullCenter label="Loading your profile..." />;
   }
 
   if (isError) {
     return (
-      <div className="max-w-3xl mx-auto mt-8 px-4 sm:px-6 lg:px-8">
-        <ErrorState 
-          title="Failed to load profile" 
-          message={(error as any)?.response?.data?.message || 'An unexpected error occurred'} 
-          onRetry={() => refetch()} 
-        />
-      </div>
+      <main className="flex-1 overflow-y-auto w-full p-4 sm:p-6 lg:p-8">
+        <div className="max-w-2xl mx-auto">
+          <ErrorState
+            title="Failed to load profile"
+            message={(error as any)?.response?.data?.message || 'An unexpected error occurred'}
+            onRetry={() => refetch()}
+          />
+        </div>
+      </main>
     );
   }
 
@@ -65,15 +67,14 @@ export function ProfilePage() {
     const file = e.target.files?.[0];
     setValidationError(null);
     setSuccessMessage(null);
-    
+
     if (!file) return;
 
-    // Validate size (2MB) and type
     if (file.size > 2 * 1024 * 1024) {
       setValidationError('Avatar must be less than 2 MB.');
       return;
     }
-    
+
     const allowedTypes = ['image/jpeg', 'image/png', 'image/webp'];
     if (!allowedTypes.includes(file.type)) {
       setValidationError('Only JPG, PNG or WebP images are allowed.');
@@ -83,7 +84,6 @@ export function ProfilePage() {
     setSelectedFile(file);
     const objectUrl = URL.createObjectURL(file);
     setPreviewUrl(objectUrl);
-    // Reset file input value so selecting same file triggers onChange again if needed
     if (fileInputRef.current) {
       fileInputRef.current.value = '';
     }
@@ -101,7 +101,7 @@ export function ProfilePage() {
 
   const handleSaveAvatar = () => {
     if (!selectedFile) return;
-    
+
     setSuccessMessage(null);
     uploadAvatar(selectedFile, {
       onSuccess: () => {
@@ -111,139 +111,171 @@ export function ProfilePage() {
           URL.revokeObjectURL(previewUrl);
           setPreviewUrl(null);
         }
-      }
+      },
     });
   };
 
   return (
-    <div className="max-w-3xl mx-auto mt-8 px-4 sm:px-6 lg:px-8">
-      <div className="bg-white shadow overflow-hidden sm:rounded-lg">
-        <div className="px-4 py-5 sm:px-6 flex justify-between items-center border-b border-gray-200">
+    <main className="flex-1 overflow-y-auto w-full p-4 sm:p-6 lg:p-8" aria-label="Your Profile">
+      <div className="max-w-2xl mx-auto flex flex-col gap-6">
+        {/* Header */}
+        <header className="flex items-center justify-between gap-4">
           <div>
-            <h3 className="text-lg leading-6 font-medium text-gray-900">User Profile</h3>
-            <p className="mt-1 max-w-2xl text-sm text-gray-500">Personal details and account information.</p>
+            <h1 className="text-2xl font-bold tracking-tight text-zinc-900">Your Profile</h1>
+            <p className="text-sm text-zinc-500">Manage your personal information and avatar.</p>
           </div>
           <button
+            type="button"
             onClick={handleLogout}
             disabled={isLoggingOut}
-            className="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md text-red-700 bg-red-100 hover:bg-red-200 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-red-500 disabled:opacity-50"
+            className="inline-flex items-center justify-center gap-2 min-h-[44px] px-4 py-2 text-xs font-semibold rounded-xl text-rose-700 bg-rose-50 hover:bg-rose-100 border border-rose-200/80 transition-colors focus-visible:ring-2 focus-visible:ring-rose-500 focus-visible:outline-none disabled:opacity-50"
           >
-            {isLoggingOut ? 'Signing out...' : 'Sign out'}
+            {isLoggingOut ? (
+              <CircleNotch size={16} weight="bold" className="animate-spin" aria-hidden="true" />
+            ) : (
+              <SignOut size={16} weight="bold" aria-hidden="true" />
+            )}
+            <span>{isLoggingOut ? 'Signing out...' : 'Sign out'}</span>
           </button>
-        </div>
-        
-        <div className="px-4 py-5 sm:p-0">
-          <dl className="sm:divide-y sm:divide-gray-200">
-            <div className="py-4 sm:py-5 sm:grid sm:grid-cols-3 sm:gap-4 sm:px-6">
-              <dt className="text-sm font-medium text-gray-500 flex items-center">Avatar</dt>
-              <dd className="mt-1 text-sm text-gray-900 sm:mt-0 sm:col-span-2">
-                <div className="flex flex-col gap-4">
-                  <div className="flex items-center gap-6">
-                    <div className="relative group rounded-full overflow-hidden w-16 h-16 flex-shrink-0">
-                      <Avatar 
-                        name={user.displayName} 
-                        url={previewUrl || user.avatarUrl} 
-                        size="lg" 
-                        className={cn("w-full h-full", isUploading && "opacity-50")}
-                      />
-                      
-                      {/* Hover Overlay */}
-                      <button
-                        type="button"
-                        onClick={() => !isUploading && fileInputRef.current?.click()}
-                        disabled={isUploading}
-                        className={cn(
-                          "absolute inset-0 bg-black/50 flex flex-col items-center justify-center text-white opacity-0 focus-within:opacity-100 focus:opacity-100 transition-opacity",
-                          !isUploading && "group-hover:opacity-100 cursor-pointer"
-                        )}
-                        aria-label="Change avatar"
-                      >
-                        <Camera size={24} weight="fill" />
-                      </button>
-                      
-                      {isUploading && (
-                        <div className="absolute inset-0 flex items-center justify-center bg-black/20" aria-live="polite">
-                          <LoadingSpinner size="sm" />
-                        </div>
-                      )}
-                    </div>
-                    
-                    {/* Upload Controls */}
-                    {previewUrl && (
-                      <div className="flex flex-col gap-2">
-                        <p className="text-sm text-zinc-600 font-medium">Previewing new avatar</p>
-                        <div className="flex gap-2">
-                          <button
-                            type="button"
-                            onClick={handleSaveAvatar}
-                            disabled={isUploading}
-                            className="px-3 py-1.5 text-sm font-medium rounded-md text-white bg-zinc-900 hover:bg-black focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-zinc-900 disabled:opacity-50"
-                          >
-                            Save avatar
-                          </button>
-                          <button
-                            type="button"
-                            onClick={handleCancelAvatar}
-                            disabled={isUploading}
-                            className="px-3 py-1.5 text-sm font-medium rounded-md text-zinc-700 bg-white border border-zinc-300 hover:bg-zinc-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-zinc-500 disabled:opacity-50"
-                          >
-                            Cancel
-                          </button>
-                        </div>
-                      </div>
-                    )}
-                  </div>
-                  
-                  {/* Messages */}
-                  {validationError && (
-                    <div className="flex items-center gap-1.5 text-sm text-rose-600" aria-live="polite">
-                      <WarningCircle size={16} weight="fill" />
-                      <span>{validationError}</span>
-                    </div>
-                  )}
-                  {uploadError && (
-                    <div className="flex items-center gap-1.5 text-sm text-rose-600" aria-live="polite">
-                      <WarningCircle size={16} weight="fill" />
-                      <span>{uploadError.message || 'Failed to update avatar. Please try again.'}</span>
-                    </div>
-                  )}
-                  {successMessage && !previewUrl && (
-                    <div className="flex items-center gap-1.5 text-sm text-emerald-600" aria-live="polite">
-                      <CheckCircle size={16} weight="fill" />
-                      <span>{successMessage}</span>
-                    </div>
-                  )}
-                </div>
+        </header>
 
-                {/* Hidden File Input */}
-                <input
-                  type="file"
-                  ref={fileInputRef}
-                  className="hidden"
-                  accept="image/jpeg,image/png,image/webp"
-                  onChange={handleFileSelect}
-                  aria-hidden="true"
-                  tabIndex={-1}
-                />
-              </dd>
+        {/* Profile Card */}
+        <div className="bg-white rounded-2xl border border-zinc-200/80 overflow-hidden shadow-xs">
+          {/* Avatar Section */}
+          <div className="p-6 sm:p-8 flex flex-col sm:flex-row items-start sm:items-center gap-6 border-b border-zinc-100">
+            <div className="relative group rounded-full overflow-hidden w-20 h-20 shrink-0">
+              <Avatar
+                name={user.displayName}
+                url={previewUrl || user.avatarUrl}
+                size="xl"
+                className={cn('w-full h-full', isUploading && 'opacity-50')}
+              />
+
+              <button
+                type="button"
+                onClick={() => !isUploading && fileInputRef.current?.click()}
+                disabled={isUploading}
+                className={cn(
+                  'absolute inset-0 bg-black/50 flex flex-col items-center justify-center text-white opacity-0 group-hover:opacity-100 focus-visible:opacity-100 transition-opacity cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white',
+                  isUploading && 'cursor-not-allowed'
+                )}
+                aria-label="Change profile photo"
+              >
+                <Camera size={24} weight="fill" aria-hidden="true" />
+                <span className="text-[10px] font-medium mt-0.5">Change</span>
+              </button>
+
+              {isUploading && (
+                <div className="absolute inset-0 flex items-center justify-center bg-black/40" role="status" aria-label="Uploading avatar">
+                  <CircleNotch size={24} weight="bold" className="animate-spin text-white" aria-hidden="true" />
+                </div>
+              )}
             </div>
-            <div className="py-4 sm:py-5 sm:grid sm:grid-cols-3 sm:gap-4 sm:px-6">
-              <dt className="text-sm font-medium text-gray-500">Display name</dt>
-              <dd className="mt-1 text-sm text-gray-900 sm:mt-0 sm:col-span-2">{user.displayName}</dd>
+
+            <div className="flex-1 flex flex-col gap-2">
+              <div>
+                <h2 className="text-lg font-bold text-zinc-900">{user.displayName}</h2>
+                <p className="text-xs text-zinc-500">JPG, PNG or WebP, up to 2MB.</p>
+              </div>
+
+              {/* Upload Controls */}
+              {previewUrl && (
+                <div className="flex flex-wrap items-center gap-2 mt-1">
+                  <button
+                    type="button"
+                    onClick={handleSaveAvatar}
+                    disabled={isUploading}
+                    className="min-h-[38px] px-3.5 py-1.5 text-xs font-semibold rounded-xl text-white bg-zinc-900 hover:bg-black transition-colors disabled:opacity-50 shadow-2xs focus-visible:ring-2 focus-visible:ring-zinc-900 focus-visible:outline-none"
+                  >
+                    {isUploading ? 'Saving...' : 'Save avatar'}
+                  </button>
+                  <button
+                    type="button"
+                    onClick={handleCancelAvatar}
+                    disabled={isUploading}
+                    className="min-h-[38px] px-3.5 py-1.5 text-xs font-semibold rounded-xl text-zinc-700 bg-zinc-100 hover:bg-zinc-200 transition-colors disabled:opacity-50 focus-visible:ring-2 focus-visible:ring-zinc-900 focus-visible:outline-none"
+                  >
+                    Cancel
+                  </button>
+                </div>
+              )}
+
+              {/* Status messages */}
+              {validationError && (
+                <div className="flex items-center gap-1.5 text-xs text-rose-600 mt-1" role="alert">
+                  <WarningCircle size={15} weight="fill" className="shrink-0" aria-hidden="true" />
+                  <span>{validationError}</span>
+                </div>
+              )}
+              {uploadError && (
+                <div className="flex items-center gap-1.5 text-xs text-rose-600 mt-1" role="alert">
+                  <WarningCircle size={15} weight="fill" className="shrink-0" aria-hidden="true" />
+                  <span>{uploadError.message || 'Failed to update avatar. Please try again.'}</span>
+                </div>
+              )}
+              {successMessage && !previewUrl && (
+                <div className="flex items-center gap-1.5 text-xs text-emerald-600 mt-1" role="status">
+                  <CheckCircle size={15} weight="fill" className="shrink-0" aria-hidden="true" />
+                  <span>{successMessage}</span>
+                </div>
+              )}
             </div>
-            <div className="py-4 sm:py-5 sm:grid sm:grid-cols-3 sm:gap-4 sm:px-6">
-              <dt className="text-sm font-medium text-gray-500">Email address</dt>
-              <dd className="mt-1 text-sm text-gray-900 sm:mt-0 sm:col-span-2">{user.email}</dd>
-            </div>
-            <div className="py-4 sm:py-5 sm:grid sm:grid-cols-3 sm:gap-4 sm:px-6">
-              <dt className="text-sm font-medium text-gray-500">Account created</dt>
-              <dd className="mt-1 text-sm text-gray-900 sm:mt-0 sm:col-span-2">
-                {new Date(user.createdAt).toLocaleDateString()}
-              </dd>
-            </div>
-          </dl>
+
+            <input
+              type="file"
+              ref={fileInputRef}
+              className="hidden"
+              accept="image/jpeg,image/png,image/webp"
+              onChange={handleFileSelect}
+              aria-hidden="true"
+              tabIndex={-1}
+            />
+          </div>
+
+          {/* Details Form / View */}
+          <div className="p-6 sm:p-8 flex flex-col gap-4">
+            <h3 className="text-xs font-bold uppercase tracking-wider text-zinc-400">Account Details</h3>
+
+            <dl className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+              <div className="flex items-center gap-3 p-3.5 rounded-xl bg-zinc-50 border border-zinc-100">
+                <div className="w-9 h-9 rounded-lg bg-white border border-zinc-200/80 flex items-center justify-center text-zinc-600 shrink-0">
+                  <UserIcon size={18} weight="bold" aria-hidden="true" />
+                </div>
+                <div className="min-w-0">
+                  <dt className="text-xs text-zinc-500 font-medium">Display name</dt>
+                  <dd className="text-sm font-semibold text-zinc-900 truncate mt-0.5">{user.displayName}</dd>
+                </div>
+              </div>
+
+              <div className="flex items-center gap-3 p-3.5 rounded-xl bg-zinc-50 border border-zinc-100">
+                <div className="w-9 h-9 rounded-lg bg-white border border-zinc-200/80 flex items-center justify-center text-zinc-600 shrink-0">
+                  <EnvelopeSimple size={18} weight="bold" aria-hidden="true" />
+                </div>
+                <div className="min-w-0">
+                  <dt className="text-xs text-zinc-500 font-medium">Email address</dt>
+                  <dd className="text-sm font-semibold text-zinc-900 truncate mt-0.5">{user.email}</dd>
+                </div>
+              </div>
+
+              <div className="flex items-center gap-3 p-3.5 rounded-xl bg-zinc-50 border border-zinc-100 sm:col-span-2">
+                <div className="w-9 h-9 rounded-lg bg-white border border-zinc-200/80 flex items-center justify-center text-zinc-600 shrink-0">
+                  <CalendarBlank size={18} weight="bold" aria-hidden="true" />
+                </div>
+                <div className="min-w-0">
+                  <dt className="text-xs text-zinc-500 font-medium">Account created</dt>
+                  <dd className="text-sm font-semibold text-zinc-900 truncate mt-0.5">
+                    {new Date(user.createdAt).toLocaleDateString(undefined, {
+                      year: 'numeric',
+                      month: 'long',
+                      day: 'numeric',
+                    })}
+                  </dd>
+                </div>
+              </div>
+            </dl>
+          </div>
         </div>
       </div>
-    </div>
+    </main>
   );
 }

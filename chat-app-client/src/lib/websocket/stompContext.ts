@@ -3,7 +3,10 @@ import type { IMessage } from '@stomp/stompjs';
 
 export type StompMessageHandler = (message: IMessage) => void;
 
+export type ConnectionStatus = 'connecting' | 'connected' | 'reconnecting' | 'disconnected';
+
 export interface StompConnection {
+  status: ConnectionStatus;
   publish: (destination: string, body: string) => void;
   subscribe: (destination: string, handler: StompMessageHandler) => () => void;
 }

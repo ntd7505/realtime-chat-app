@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useRef, type ReactNode } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
 import type { Client, StompSubscription } from '@stomp/stompjs';
 import { useAuthStore } from '@/features/auth/authStore';
 import { createStompClient } from './stompClient';
@@ -7,6 +7,7 @@ import {
   StompContext,
   type StompConnection,
   type StompMessageHandler,
+  type ConnectionStatus,
 } from './stompContext';
 
 interface StompProviderProps {
@@ -16,6 +17,7 @@ interface StompProviderProps {
 export function StompProvider({ children }: StompProviderProps) {
   const accessToken = useAuthStore((state) => state.accessToken);
   const status = useAuthStore((state) => state.status);
+  const [connectionStatus, setConnectionStatus] = useState<ConnectionStatus>('disconnected');
   const clientRef = useRef<Client | null>(null);
   const handlersRef = useRef(new Map<string, Set<StompMessageHandler>>());
   const subscriptionsRef = useRef(new Map<string, StompSubscription>());
@@ -80,6 +82,7 @@ export function StompProvider({ children }: StompProviderProps) {
     client.onConnect = () => {
       if (clientRef.current !== client) return;
 
+      setConnectionStatus('connected');
       subscriptions.clear();
       handlersRef.current.forEach((_handlers, destination) => ensureSubscription(destination));
     };
@@ -87,7 +90,14 @@ export function StompProvider({ children }: StompProviderProps) {
     client.onWebSocketClose = () => {
       if (clientRef.current !== client) return;
 
+      setConnectionStatus(client.active ? 'reconnecting' : 'disconnected');
       subscriptions.clear();
+    };
+
+    client.onWebSocketError = () => {
+      if (clientRef.current === client) {
+        setConnectionStatus(client.active ? 'reconnecting' : 'disconnected');
+      }
     };
 
     client.onStompError = (frame) => {
@@ -106,11 +116,13 @@ export function StompProvider({ children }: StompProviderProps) {
       void refreshToken();
     };
 
+    setConnectionStatus('connecting');
     client.activate();
 
     return () => {
       if (clientRef.current === client) {
         clientRef.current = null;
+        setConnectionStatus('disconnected');
         subscriptions.clear();
       }
       void client.deactivate();
@@ -118,8 +130,8 @@ export function StompProvider({ children }: StompProviderProps) {
   }, [accessToken, ensureSubscription, status]);
 
   const value = useMemo<StompConnection>(
-    () => ({ publish, subscribe }),
-    [publish, subscribe]
+    () => ({ publish, subscribe, status: connectionStatus }),
+    [publish, subscribe, connectionStatus]
   );
 
   return <StompContext.Provider value={value}>{children}</StompContext.Provider>;

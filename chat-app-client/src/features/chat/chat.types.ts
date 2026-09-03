@@ -1,6 +1,7 @@
 import type { UserSummary } from '@/features/users/user.types';
 
 export type ChatType = 'DIRECT';
+export type MessageStatus = 'sending' | 'sent' | 'failed';
 
 export interface Message {
   id: number;
@@ -8,6 +9,7 @@ export interface Message {
   sender: UserSummary;
   content: string;
   createdAt: string;
+  status?: MessageStatus;
 }
 
 export interface Chat {
