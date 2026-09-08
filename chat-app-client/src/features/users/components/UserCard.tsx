@@ -13,7 +13,7 @@ export function UserCard({ user }: UserCardProps) {
   const { startDirectChat, isPending, isError } = useStartDirectChat();
 
   return (
-    <div className="bg-white rounded-2xl border border-zinc-200/80 p-4 sm:p-5 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 shadow-2xs hover:shadow-xs transition-all duration-150">
+    <div className="bg-white rounded-2xl border border-zinc-200/80 p-4 sm:p-5 flex flex-col sm:flex-row sm:flex-wrap items-start sm:items-center justify-between gap-4 shadow-2xs hover:shadow-xs transition-all duration-150">
       <div className="flex items-center gap-3.5 min-w-0 flex-1">
         <Avatar name={user.displayName} url={user.avatarUrl} size="lg" className="w-12 h-12 shrink-0" />
         <div className="min-w-0 flex-1">
@@ -59,7 +59,7 @@ export function UserCard({ user }: UserCardProps) {
           <button
             type="button"
             onClick={() => startDirectChat(user.id)}
-            className="font-bold underline hover:text-rose-800"
+            className="min-h-11 min-w-11 rounded-lg px-2 font-bold underline hover:text-rose-800 focus-visible:ring-2 focus-visible:ring-rose-700"
           >
             Retry
           </button>

@@ -4,6 +4,8 @@ import { useStomp } from '@/lib/websocket/stompContext';
 import type { SendMessageRequest, Message } from '../chat.types';
 import { chatApi, validateSendMessageRequest } from '../api/chatApi';
 import { chatKeys } from '../chat.keys';
+import { upsertMessage, updateMessage, type MessageHistory } from '../messageCache';
+import { draftKey, useDraftStore } from '../draftStore';
 
 export { chatKeys } from '../chat.keys';
 
@@ -32,12 +34,22 @@ export const useChat = (chatId: number) => {
 };
 
 export const useMessages = (chatId: number, limit = 30) => {
+  const queryClient = useQueryClient();
   const isAuthenticated = useAuthStore((state) => state.status === 'authenticated');
   const userId = useAuthStore((state) => state.user?.id ?? 0);
 
   return useInfiniteQuery({
     queryKey: chatKeys.messageHistory(userId, chatId, limit),
-    queryFn: ({ pageParam }) => chatApi.getMessages(chatId, { cursor: pageParam, limit }),
+    queryFn: async ({ pageParam }) => {
+      const page = await chatApi.getMessages(chatId, { cursor: pageParam, limit });
+      if (pageParam !== null) return page;
+      const cached = queryClient.getQueryData<MessageHistory>(chatKeys.messageHistory(userId, chatId, limit));
+      const pending = cached?.pages.flatMap((p) => p.items).filter((message) =>
+        (message.status === 'sending' || message.status === 'failed') &&
+        !page.items.some((item) => item.clientMessageId === message.clientMessageId),
+      ) ?? [];
+      return { ...page, items: [...pending, ...page.items] };
+    },
     initialPageParam: null as string | null,
     getNextPageParam: (lastPage) => (lastPage.hasNext ? lastPage.nextCursor : undefined),
     enabled: isAuthenticated && Number.isInteger(chatId) && chatId > 0,
@@ -62,7 +74,7 @@ interface SendMessageVariables extends SendMessageRequest {
 }
 
 export const useSendMessage = () => {
-  const { publish, subscribe } = useStomp();
+  const { publish, subscribe, status } = useStomp();
   const queryClient = useQueryClient();
   const userId = useAuthStore((state) => state.user?.id ?? 0);
 
@@ -72,8 +84,9 @@ export const useSendMessage = () => {
         throw new TypeError('chatId must be a positive integer');
       }
       validateSendMessageRequest(request);
+      if (status !== 'connected') throw new Error('Connect before sending. Your draft is saved.');
 
-      return new Promise<void>((resolve, reject) => {
+      return new Promise<Message>((resolve, reject) => {
         const topic = `/topic/chats/${chatId}`;
         let unsubscribe: () => void = () => {};
 
@@ -87,12 +100,12 @@ export const useSendMessage = () => {
               queryClient.invalidateQueries({ queryKey: chatKeys.lists(userId) }),
             ]);
 
-            const wasPersisted = latestMessages.items.some(
+            const wasPersisted = latestMessages.items.find(
               (message) => message.clientMessageId === request.clientMessageId
             );
 
             if (wasPersisted) {
-              resolve();
+              resolve(wasPersisted);
               return;
             }
 
@@ -103,22 +116,21 @@ export const useSendMessage = () => {
         }, 10_000);
 
         unsubscribe = subscribe(topic, (frame) => {
-          let receivedClientMessageId: string | undefined;
+          let received: Message;
 
           try {
-            receivedClientMessageId = (JSON.parse(frame.body) as { clientMessageId?: string })
-              .clientMessageId;
+            received = JSON.parse(frame.body) as Message;
           } catch {
             return;
           }
 
-          if (receivedClientMessageId !== request.clientMessageId) {
+          if (received.clientMessageId !== request.clientMessageId || !received.id || !received.sender) {
             return;
           }
 
           window.clearTimeout(timeoutId);
           unsubscribe();
-          resolve();
+          resolve(received);
         });
 
         try {
@@ -132,13 +144,12 @@ export const useSendMessage = () => {
     },
     onMutate: async (variables) => {
       await queryClient.cancelQueries({ queryKey: chatKeys.messages(userId, variables.chatId) });
-      const previousMessages = queryClient.getQueryData(chatKeys.messages(userId, variables.chatId));
-
       const currentUser = useAuthStore.getState().user;
-      if (!currentUser) return { previousMessages };
+      if (!currentUser || currentUser.id !== userId || status !== 'connected') return;
+      validateSendMessageRequest(variables);
 
       const optimisticMessage: Message = {
-        id: Date.now(),
+        id: -Date.now(),
         clientMessageId: variables.clientMessageId,
         content: variables.content,
         sender: {
@@ -150,53 +161,21 @@ export const useSendMessage = () => {
         status: 'sending'
       };
 
-      queryClient.setQueryData(chatKeys.messages(userId, variables.chatId), (old: any) => {
-        if (!old || !old.pages) return old;
-        const newPages = [...old.pages];
-        if (newPages.length > 0) {
-          newPages[0] = {
-            ...newPages[0],
-            items: [optimisticMessage, ...newPages[0].items]
-          };
-        }
-        return { ...old, pages: newPages };
-      });
-
-      return { previousMessages, optimisticMessage };
+      upsertMessage(queryClient, userId, variables.chatId, optimisticMessage);
     },
-    onError: (_err, variables, _context: any) => {
-      queryClient.setQueryData(chatKeys.messages(userId, variables.chatId), (old: any) => {
-        if (!old || !old.pages) return old;
-        const newPages = [...old.pages];
-        if (newPages.length > 0) {
-          newPages[0] = {
-            ...newPages[0],
-            items: newPages[0].items.map((msg: Message) =>
-              msg.clientMessageId === variables.clientMessageId
-                ? { ...msg, status: 'failed' }
-                : msg
-            )
-          };
-        }
-        return { ...old, pages: newPages };
-      });
+    onError: (_err, variables) => {
+      if (useAuthStore.getState().user?.id !== userId) return;
+      updateMessage(queryClient, userId, variables.chatId, (items) => items.map((msg) =>
+        msg.clientMessageId === variables.clientMessageId && msg.status === 'sending'
+          ? { ...msg, status: 'failed' } : msg,
+      ));
     },
-    onSuccess: (_data, variables, _context) => {
-      queryClient.setQueryData(chatKeys.messages(userId, variables.chatId), (old: any) => {
-        if (!old || !old.pages) return old;
-        const newPages = [...old.pages];
-        if (newPages.length > 0) {
-          newPages[0] = {
-            ...newPages[0],
-            items: newPages[0].items.map((msg: Message) =>
-              msg.clientMessageId === variables.clientMessageId && msg.status === 'sending'
-                ? { ...msg, status: 'sent' }
-                : msg
-            )
-          };
-        }
-        return { ...old, pages: newPages };
-      });
+    onSuccess: async (message, variables) => {
+      if (useAuthStore.getState().user?.id !== userId) return;
+      await queryClient.cancelQueries({ queryKey: chatKeys.messages(userId, variables.chatId) });
+      upsertMessage(queryClient, userId, variables.chatId, { ...message, status: 'sent' });
+      useDraftStore.getState().confirm(draftKey(userId, variables.chatId), variables.clientMessageId);
+      void queryClient.invalidateQueries({ queryKey: chatKeys.lists(userId) });
     }
   });
 };

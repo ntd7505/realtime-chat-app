@@ -1,4 +1,4 @@
-import { useState, type ReactNode } from 'react';
+import { useRef, useState, type ReactNode } from 'react';
 import { Link } from 'react-router-dom';
 import { ChatCircleDots, Prohibit, UserMinus, UserPlus, Check, X, CircleNotch } from '@phosphor-icons/react';
 import { Avatar } from '@/components/ui/Avatar';
@@ -74,6 +74,7 @@ function StartChatButton({ user }: { user: UserSummary }) {
 
 export function ConnectionsPage() {
   const [activeTab, setActiveTab] = useState<ConnectionTab>('friends');
+  const tabRefs = useRef<(HTMLButtonElement | null)[]>([]);
   const friends = useFriends();
   const requests = useReceivedFriendRequests();
   const blocked = useBlockedUsers();
@@ -89,13 +90,13 @@ export function ConnectionsPage() {
   ];
 
   const handleKeyDownTabs = (e: React.KeyboardEvent, index: number) => {
-    if (e.key === 'ArrowRight') {
-      const nextIndex = (index + 1) % tabs.length;
-      setActiveTab(tabs[nextIndex].id);
-    } else if (e.key === 'ArrowLeft') {
-      const prevIndex = (index - 1 + tabs.length) % tabs.length;
-      setActiveTab(tabs[prevIndex].id);
-    }
+    const nextIndex = e.key === 'ArrowRight' ? (index + 1) % tabs.length
+      : e.key === 'ArrowLeft' ? (index + tabs.length - 1) % tabs.length
+      : e.key === 'Home' ? 0 : e.key === 'End' ? tabs.length - 1 : null;
+    if (nextIndex === null) return;
+    e.preventDefault();
+    setActiveTab(tabs[nextIndex].id);
+    tabRefs.current[nextIndex]?.focus();
   };
 
   const renderFriends = () => {
@@ -261,6 +262,9 @@ export function ConnectionsPage() {
             return (
               <button
                 key={tab.id}
+                id={`connections-tab-${tab.id}`}
+                aria-controls={`connections-panel-${tab.id}`}
+                ref={(element) => { tabRefs.current[index] = element; }}
                 type="button"
                 role="tab"
                 aria-selected={isSelected}
@@ -268,7 +272,7 @@ export function ConnectionsPage() {
                 onClick={() => setActiveTab(tab.id)}
                 onKeyDown={(e) => handleKeyDownTabs(e, index)}
                 className={cn(
-                  'min-h-[44px] flex-1 whitespace-nowrap rounded-xl px-4 py-2 text-xs font-semibold transition-all duration-150 flex items-center justify-center gap-1.5 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-zinc-900',
+                  'min-w-0 min-h-[44px] flex-1 flex-wrap rounded-xl px-2 sm:px-4 py-2 text-xs font-semibold transition-colors duration-150 flex items-center justify-center gap-1.5 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-zinc-900',
                   isSelected
                     ? 'bg-white text-zinc-900 shadow-xs'
                     : 'text-zinc-500 hover:text-zinc-900 hover:bg-white/50'
@@ -289,7 +293,7 @@ export function ConnectionsPage() {
         </div>
 
         {/* Tab Content Panel */}
-        <section className="flex flex-col gap-3 min-h-64" role="tabpanel" aria-label={`${activeTab} list`}>
+        <section id={`connections-panel-${activeTab}`} aria-labelledby={`connections-tab-${activeTab}`} tabIndex={0} className="flex flex-col gap-3 min-h-64" role="tabpanel">
           {activeTab === 'friends' && renderFriends()}
           {activeTab === 'requests' && renderRequests()}
           {activeTab === 'blocked' && renderBlocked()}

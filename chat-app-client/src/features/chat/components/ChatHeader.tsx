@@ -55,7 +55,7 @@ export const ChatHeader = ({ chatId }: ChatHeaderProps) => {
 
   return (
     <header className="h-[68px] md:h-[76px] flex items-center justify-between px-4 md:px-6 border-b border-zinc-200/60 bg-white/80 backdrop-blur-md shrink-0 z-10">
-      <div className="flex items-center gap-2 sm:gap-3">
+      <div className="flex min-w-0 flex-1 items-center gap-2 sm:gap-3">
         {/* Mobile Back Button */}
         <button
           type="button"
@@ -68,22 +68,20 @@ export const ChatHeader = ({ chatId }: ChatHeaderProps) => {
 
         <Link
           to={`/users/${chat.otherUser.id}`}
-          className="flex items-center gap-3 group rounded-xl p-1 -m-1 focus-visible:ring-2 focus-visible:ring-zinc-900 focus-visible:outline-none"
+          className="flex min-w-0 items-center gap-3 group rounded-xl p-1 -m-1 focus-visible:ring-2 focus-visible:ring-zinc-900 focus-visible:outline-none"
           title={`View ${chat.otherUser.displayName}'s profile`}
         >
           <Avatar
             name={chat.otherUser.displayName}
             url={chat.otherUser.avatarUrl}
             className="w-10 h-10 md:w-11 md:h-11 shrink-0"
-            isOnline={true}
           />
-          <div className="flex flex-col">
-            <h2 className="text-sm md:text-base font-semibold text-zinc-900 leading-tight group-hover:text-black transition-colors">
+          <div className="flex min-w-0 flex-col">
+            <h2 className="truncate text-sm md:text-base font-semibold text-zinc-900 leading-tight group-hover:text-black transition-colors">
               {chat.otherUser.displayName}
             </h2>
-            <span className="text-[11px] text-emerald-600 font-medium flex items-center gap-1 mt-0.5">
-              <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" aria-hidden="true" />
-              Online
+            <span className="text-xs text-zinc-600 font-medium flex items-center gap-1 mt-0.5">
+              Direct conversation
             </span>
           </div>
         </Link>

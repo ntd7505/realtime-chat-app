@@ -113,7 +113,7 @@ export const ConversationList = ({ activeChatId }: ConversationListProps) => {
           <h1 className="text-xl font-bold text-zinc-900 tracking-tight">Messages</h1>
           <Link
             to="/users"
-            className="w-8 h-8 rounded-full flex items-center justify-center text-zinc-500 hover:text-zinc-900 hover:bg-zinc-100 transition-colors focus-visible:ring-2 focus-visible:ring-zinc-900 focus-visible:outline-none"
+            className="w-11 h-11 rounded-full flex items-center justify-center text-zinc-500 hover:text-zinc-900 hover:bg-zinc-100 transition-colors focus-visible:ring-2 focus-visible:ring-zinc-900 focus-visible:outline-none"
             aria-label="New chat / find users"
             title="Start new chat"
           >
@@ -135,7 +135,7 @@ export const ConversationList = ({ activeChatId }: ConversationListProps) => {
             id="conversation-search"
             ref={searchInputRef}
             className="w-full rounded-xl py-2.5 pl-10 pr-12 text-sm bg-zinc-100/90 text-zinc-900 placeholder-zinc-400 border border-transparent focus:border-zinc-300 focus:bg-white focus:outline-none focus-visible:ring-2 focus-visible:ring-zinc-900 transition-all duration-150"
-            placeholder="Search messages..."
+            placeholder="Filter loaded conversations..."
             type="search"
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
@@ -151,8 +151,9 @@ export const ConversationList = ({ activeChatId }: ConversationListProps) => {
         </div>
       </div>
 
+      <p className="px-5 py-2 text-xs text-zinc-600">Filters names and latest messages in loaded conversations.</p>
       {/* Conversations List */}
-      <div className="flex-1 overflow-y-auto p-2 sm:p-3 flex flex-col gap-1" role="list">
+      <div className="flex-1 overflow-y-auto p-2 sm:p-3 flex flex-col gap-1">
         {isLoading && (
           <div className="flex flex-col gap-2 p-1" aria-label="Loading conversations" role="status">
             {Array.from({ length: 6 }).map((_, i) => (
@@ -203,7 +204,7 @@ export const ConversationList = ({ activeChatId }: ConversationListProps) => {
 
         {!isLoading && !isError && filteredChats.length === 0 && chats.length > 0 && (
           <div className="p-6 text-center text-xs text-zinc-500 my-auto">
-            No conversations matching "{searchQuery}"
+            No loaded conversations match "{searchQuery}".
           </div>
         )}
 
@@ -228,7 +229,7 @@ export const ConversationList = ({ activeChatId }: ConversationListProps) => {
                       ? "bg-zinc-100/95 border-zinc-200 text-zinc-900 shadow-2xs"
                       : "border-transparent text-zinc-700 hover:bg-white/80"
                   )}
-                  aria-selected={isActive}
+                  aria-current={isActive ? 'true' : undefined}
                 >
                   {isActive && (
                     <span
@@ -267,7 +268,10 @@ export const ConversationList = ({ activeChatId }: ConversationListProps) => {
               );
             })}
 
-            {hasNextPage && (
+          </>
+        )}
+
+            {!isLoading && !isError && hasNextPage && (
               <button
                 type="button"
                 onClick={() => fetchNextPage()}
@@ -277,8 +281,6 @@ export const ConversationList = ({ activeChatId }: ConversationListProps) => {
                 {isFetchingNextPage ? 'Loading more...' : 'Load more conversations'}
               </button>
             )}
-          </>
-        )}
       </div>
     </aside>
   );

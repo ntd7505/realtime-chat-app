@@ -1,175 +1,86 @@
-import { useState, useRef, type FormEvent, type KeyboardEvent } from 'react';
-import { PaperPlaneRight, CircleNotch, WarningCircle, WifiSlash } from '@phosphor-icons/react';
-import { useSendMessage } from '@/features/chat/hooks/useChats';
+import { useLayoutEffect, useRef, type FormEvent, type KeyboardEvent } from 'react';
+import { PaperPlaneRight, CircleNotch, WarningCircle } from '@phosphor-icons/react';
+import { useSendMessage } from '../hooks/useChats';
 import { useStomp } from '@/lib/websocket/stompContext';
-import { cn } from '@/lib/utils';
+import { useAuthStore } from '@/features/auth/authStore';
+import { draftKey, useDraftStore } from '../draftStore';
+import { getApiErrorMessage } from '@/utils/error';
 
-interface MessageComposerProps {
-  chatId: number;
-}
-
-export const MessageComposer = ({ chatId }: MessageComposerProps) => {
-  const [content, setContent] = useState('');
+export const MessageComposer = ({ chatId }: { chatId: number }) => {
+  const userId = useAuthStore((state) => state.user?.id ?? 0);
+  const key = draftKey(userId, chatId);
+  const content = useDraftStore((state) => state.drafts[key]?.content ?? '');
   const textareaRef = useRef<HTMLTextAreaElement>(null);
-  const pendingMessageRef = useRef<{
-    chatId: number;
-    clientMessageId: string;
-    content: string;
-  } | null>(null);
+  const composingRef = useRef(false);
+  const { status } = useStomp();
+  const { mutate: sendMessage, isPending, isError, error, reset } = useSendMessage();
+  const canSend = status === 'connected' && !isPending && !!content.trim();
 
-  const { status: stompStatus } = useStomp();
-  const isDisconnected = stompStatus === 'disconnected' || stompStatus === 'reconnecting';
-
-  const { mutate: sendMessage, isPending, isError, reset } = useSendMessage();
+  useLayoutEffect(() => {
+    const textarea = textareaRef.current;
+    if (!textarea) return;
+    textarea.style.height = 'auto';
+    textarea.style.height = Math.min(textarea.scrollHeight, 120) + 'px';
+  }, [content]);
 
   const handleSend = () => {
-    const trimmedContent = content.trim();
-    if (!trimmedContent || isPending) return;
-
-    const pendingMessage = pendingMessageRef.current;
-    const clientMessageId =
-      pendingMessage?.chatId === chatId && pendingMessage.content === trimmedContent
-        ? pendingMessage.clientMessageId
-        : crypto.randomUUID();
-
-    pendingMessageRef.current = { chatId, clientMessageId, content: trimmedContent };
-
-    sendMessage(
-      {
-        chatId,
-        clientMessageId,
-        content: trimmedContent,
+    if (!canSend || composingRef.current) return;
+    const clientMessageId = useDraftStore.getState().prepare(key);
+    sendMessage({ chatId, clientMessageId, content: content.trim() }, {
+      onSuccess: () => {
+        reset();
+        textareaRef.current?.focus();
       },
-      {
-        onSuccess: () => {
-          pendingMessageRef.current = null;
-          setContent('');
-          reset();
-          if (textareaRef.current) {
-            textareaRef.current.style.height = 'auto';
-            textareaRef.current.focus();
-          }
-        },
-      }
-    );
+    });
   };
 
-  const handleSubmit = (e: FormEvent) => {
-    e.preventDefault();
+  const handleSubmit = (event: FormEvent) => {
+    event.preventDefault();
     handleSend();
   };
-
-  const handleKeyDown = (e: KeyboardEvent<HTMLTextAreaElement>) => {
-    if (e.key === 'Enter' && !e.shiftKey) {
-      e.preventDefault();
+  const handleKeyDown = (event: KeyboardEvent<HTMLTextAreaElement>) => {
+    if (event.nativeEvent.isComposing || composingRef.current || event.keyCode === 229) return;
+    if (event.key === 'Enter' && !event.shiftKey) {
+      event.preventDefault();
       handleSend();
     }
   };
 
-  const handleChange = (e: React.ChangeEvent<HTMLTextAreaElement>) => {
-    setContent(e.target.value);
-    // Auto-resize
-    if (textareaRef.current) {
-      textareaRef.current.style.height = 'auto';
-      textareaRef.current.style.height = `${Math.min(textareaRef.current.scrollHeight, 120)}px`;
-    }
-    if (isError) {
-      reset();
-    }
-  };
-
-  const isSendDisabled = !content.trim() || isPending || isDisconnected;
-
   return (
-    <footer
-      className="p-3 sm:p-4 md:px-6 md:py-3.5 bg-white/70 backdrop-blur-md border-t border-zinc-200/60 shrink-0 relative"
-      aria-label="Message composer"
-    >
-      {/* Error alert */}
+    <footer className="shrink-0 border-t border-zinc-200 bg-white p-3 sm:p-4 md:px-6 pb-[max(0.75rem,env(safe-area-inset-bottom))]" aria-label="Message composer">
       {isError && (
-        <div
-          role="alert"
-          className="absolute -top-11 left-4 right-4 sm:left-6 sm:right-6 flex items-center justify-between gap-2 text-xs font-medium text-rose-700 bg-rose-50/95 border border-rose-200 px-3.5 py-2 rounded-xl shadow-xs backdrop-blur-xs"
-        >
-          <div className="flex items-center gap-1.5 min-w-0">
-            <WarningCircle size={15} weight="bold" className="shrink-0 text-rose-600" aria-hidden="true" />
-            <span className="truncate">Failed to send message. Please try again.</span>
-          </div>
-          <button
-            type="button"
-            onClick={handleSend}
-            className="shrink-0 text-xs font-bold text-rose-800 hover:text-rose-950 underline px-1 focus-visible:outline-none"
-          >
-            Retry
-          </button>
-        </div>
-      )}
-
-      {/* Disconnected alert */}
-      {isDisconnected && !isError && (
-        <div
-          role="status"
-          aria-live="polite"
-          className="absolute -top-11 left-4 right-4 sm:left-6 sm:right-6 flex items-center gap-2 text-xs font-medium text-amber-800 bg-amber-50/95 border border-amber-200 px-3.5 py-2 rounded-xl shadow-xs backdrop-blur-xs"
-        >
-          <WifiSlash size={15} weight="bold" className="shrink-0 text-amber-600" aria-hidden="true" />
-          <span>Realtime is reconnecting. Messages will be sent once restored.</span>
-        </div>
-      )}
-
-      <form
-        onSubmit={handleSubmit}
-        className={cn(
-          "flex items-end gap-2 bg-zinc-50/90 hover:bg-zinc-100/70 focus-within:bg-white rounded-2xl p-1.5 sm:p-2 transition-all duration-150 border",
-          isError
-            ? "border-rose-300 ring-2 ring-rose-100"
-            : "border-zinc-200/90 focus-within:border-zinc-400 focus-within:ring-2 focus-within:ring-zinc-900/10 shadow-2xs"
-        )}
-      >
-        <label htmlFor="message-textarea" className="sr-only">
-          Write a message
-        </label>
-        <textarea
-          id="message-textarea"
-          ref={textareaRef}
-          className="flex-1 bg-transparent border-none outline-none focus:outline-none focus:ring-0 focus-visible:outline-none focus-visible:ring-0 text-sm px-3.5 py-2 text-zinc-900 placeholder-zinc-400 min-w-0 resize-none max-h-[120px] overflow-y-auto leading-relaxed"
-          placeholder="Write a message..."
-          value={content}
-          onChange={handleChange}
-          onKeyDown={handleKeyDown}
-          disabled={isPending || isDisconnected}
-          rows={1}
-          aria-label="Write a message"
-        />
-
-        <div className="flex items-center gap-2 shrink-0 pb-0.5 pr-0.5">
-          <span
-            className="hidden sm:inline-block text-[11px] text-zinc-400 select-none pr-1"
-            title="Press Enter to send, Shift+Enter for new line"
-          >
-            Enter ↵
+        <div role="alert" className="mb-3 flex flex-wrap items-center justify-between gap-2 rounded-xl border border-rose-200 bg-rose-50 px-3 py-2 text-sm text-rose-800">
+          <span className="flex min-w-0 items-center gap-2 [overflow-wrap:anywhere]">
+            <WarningCircle size={18} className="shrink-0" aria-hidden="true" />
+            {getApiErrorMessage(error, 'Could not send. Your draft is saved. Try again.')}
           </span>
-
-          <button
-            type="submit"
-            disabled={isSendDisabled}
-            className={cn(
-              "min-w-[40px] min-h-[40px] w-10 h-10 rounded-xl flex items-center justify-center transition-all duration-150 shrink-0 active:scale-[0.96] focus-visible:ring-2 focus-visible:ring-zinc-900 focus-visible:outline-none",
-              isSendDisabled
-                ? "bg-zinc-200/70 text-zinc-400 cursor-not-allowed"
-                : "bg-zinc-900 text-white hover:bg-black shadow-2xs"
-            )}
-            aria-label={isPending ? 'Sending message...' : 'Send message'}
-            title={isPending ? 'Sending...' : 'Send message (Enter)'}
-          >
-            {isPending ? (
-              <CircleNotch size={17} weight="bold" className="animate-spin" aria-hidden="true" />
-            ) : (
-              <PaperPlaneRight size={17} weight="fill" aria-hidden="true" />
-            )}
-          </button>
+          <button type="button" onClick={handleSend} disabled={!canSend} className="min-h-11 min-w-11 rounded-lg px-2 font-semibold underline focus-visible:ring-2 focus-visible:ring-rose-700 disabled:opacity-50">Retry</button>
         </div>
+      )}
+      <form onSubmit={handleSubmit} className="flex items-end gap-2 rounded-2xl border border-zinc-300 bg-zinc-50 p-2 focus-within:border-zinc-700 focus-within:ring-2 focus-within:ring-zinc-700">
+        <label htmlFor="message-textarea" className="sr-only">Write a message</label>
+        <textarea
+          id="message-textarea" ref={textareaRef} value={content} rows={1} maxLength={5000}
+          placeholder="Write a message..."
+          className="min-w-0 flex-1 resize-none overflow-y-auto bg-transparent px-2 py-2 text-base leading-relaxed text-zinc-900 placeholder-zinc-500 max-h-[120px]"
+          onChange={(event) => {
+            useDraftStore.getState().edit(key, event.target.value);
+            if (isError) reset();
+          }}
+          onKeyDown={handleKeyDown}
+          onCompositionStart={() => { composingRef.current = true; }}
+          onCompositionEnd={() => { composingRef.current = false; }}
+          aria-describedby="composer-hint"
+        />
+        <button type="submit" disabled={!canSend} aria-label={isPending ? 'Sending message...' : 'Send message'} className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-zinc-900 text-white transition-colors hover:bg-black focus-visible:ring-2 focus-visible:ring-zinc-900 focus-visible:ring-offset-2 disabled:bg-zinc-200 disabled:text-zinc-600">
+          {isPending ? <CircleNotch size={18} className="animate-spin" aria-hidden="true" /> : <PaperPlaneRight size={18} weight="fill" aria-hidden="true" />}
+        </button>
       </form>
+      <p id="composer-hint" className="mt-2 text-xs text-zinc-600">
+        {status !== 'connected'
+          ? 'You can keep writing. Send when connected; messages are not queued automatically.'
+          : 'Enter to send · Shift+Enter for a new line'}
+      </p>
     </footer>
   );
 };

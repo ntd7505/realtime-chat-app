@@ -113,6 +113,22 @@ describe('ConnectionsPage', () => {
     expect(screen.getByText('Charlie Le')).toBeTruthy();
   });
 
+  it('moves selection and focus with arrows, Home and End', async () => {
+    const user = userEvent.setup();
+    renderPage();
+    screen.getByRole('tab', { name: /friends/i }).focus();
+    await user.keyboard('{ArrowRight}');
+    expect(screen.getByRole('tab', { name: /requests/i })).toHaveFocus();
+    await user.keyboard('{ArrowRight}');
+    expect(screen.getByRole('tab', { name: /blocked/i })).toHaveFocus();
+    await user.keyboard('{Home}');
+    expect(screen.getByRole('tab', { name: /friends/i })).toHaveFocus();
+    await user.keyboard('{End}');
+    const tab = screen.getByRole('tab', { name: /blocked/i });
+    expect(tab).toHaveFocus();
+    expect(tab).toHaveAttribute('aria-controls', screen.getByRole('tabpanel').id);
+  });
+
   it('calls the matching mutation for every connection action', async () => {
     const user = userEvent.setup();
     renderPage();

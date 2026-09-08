@@ -15,7 +15,8 @@ export const Sidebar = () => {
   const [searchParams] = useSearchParams();
 
   // Hide mobile bottom navigation when actively in a chat on mobile
-  const isMobileChatActive = location.pathname === '/chat' && searchParams.has('chat');
+  const chatId = Number(searchParams.get('chat'));
+  const isMobileChatActive = location.pathname === '/chat' && Number.isInteger(chatId) && chatId > 0;
 
   const navItems = [
     {

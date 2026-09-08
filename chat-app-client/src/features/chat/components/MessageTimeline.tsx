@@ -102,7 +102,7 @@ export const MessageTimeline = ({ chatId }: MessageTimelineProps) => {
     if (!container || messages.length === 0) return;
 
     const lastMessage = messages[messages.length - 1];
-    const currentLastMessageId = lastMessage.id || lastMessage.clientMessageId;
+    const currentLastMessageId = lastMessage.clientMessageId || lastMessage.id;
 
     if (isFetchingNextPage) {
       return;
@@ -131,7 +131,7 @@ export const MessageTimeline = ({ chatId }: MessageTimelineProps) => {
     // 3. Xử lý message mới
     if (previousLastMessageIdRef.current !== currentLastMessageId) {
       if (wasNearBottomRef.current) {
-        container.scrollTo({ top: container.scrollHeight, behavior: 'smooth' });
+        container.scrollTo({ top: container.scrollHeight, behavior: window.matchMedia?.('(prefers-reduced-motion: reduce)').matches ? 'auto' : 'smooth' });
       } else {
         setHasNewMessageIndicator(true);
       }
@@ -144,7 +144,7 @@ export const MessageTimeline = ({ chatId }: MessageTimelineProps) => {
     if (scrollContainerRef.current) {
       scrollContainerRef.current.scrollTo({
         top: scrollContainerRef.current.scrollHeight,
-        behavior: 'smooth',
+        behavior: window.matchMedia?.('(prefers-reduced-motion: reduce)').matches ? 'auto' : 'smooth',
       });
     }
   };
@@ -195,7 +195,7 @@ export const MessageTimeline = ({ chatId }: MessageTimelineProps) => {
     <div
       ref={scrollContainerRef}
       onScroll={handleScroll}
-      className="flex-1 overflow-y-auto p-4 md:p-6 flex flex-col gap-4 relative"
+      className="min-h-0 flex-1 overflow-y-auto p-4 md:p-6 flex flex-col gap-4 relative"
       tabIndex={0}
       aria-label="Message history"
     >
@@ -205,7 +205,7 @@ export const MessageTimeline = ({ chatId }: MessageTimelineProps) => {
             type="button"
             onClick={handleFetchNextPage}
             disabled={isFetchingNextPage}
-            className="min-h-[36px] px-4 py-1.5 text-xs font-medium bg-white/90 backdrop-blur-sm border border-zinc-200 rounded-full text-zinc-600 hover:bg-white hover:text-zinc-900 transition-colors disabled:opacity-50 shadow-xs focus-visible:ring-2 focus-visible:ring-zinc-900 focus-visible:outline-none"
+            className="min-h-[44px] px-4 py-1.5 text-xs font-medium bg-white/90 backdrop-blur-sm border border-zinc-200 rounded-full text-zinc-600 hover:bg-white hover:text-zinc-900 transition-colors disabled:opacity-50 shadow-xs focus-visible:ring-2 focus-visible:ring-zinc-900 focus-visible:outline-none"
           >
             {isFetchingNextPage ? 'Loading older messages...' : 'Load older messages'}
           </button>
@@ -215,7 +215,7 @@ export const MessageTimeline = ({ chatId }: MessageTimelineProps) => {
       {messages.length === 0 && !hasNextPage ? (
         <div className="flex-1 flex flex-col items-center justify-center gap-3 text-center py-12">
           <div className="w-12 h-12 rounded-2xl bg-white border border-zinc-100 flex items-center justify-center shadow-xs">
-            <ChatCircleDots size={24} className="text-zinc-400" weight="regular" />
+            <ChatCircleDots size={24} className="text-zinc-600" weight="regular" />
           </div>
           <div className="space-y-1">
             <p className="text-sm font-medium text-zinc-900">No messages yet</p>
@@ -244,7 +244,7 @@ export const MessageTimeline = ({ chatId }: MessageTimelineProps) => {
             : date.toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' }).toLowerCase();
 
           return (
-            <div key={message.id || message.clientMessageId} className="flex flex-col">
+            <div key={message.clientMessageId || message.id} className="flex flex-col">
               {showDateSeparator && (
                 <div className="flex justify-center my-3" aria-label={`Date: ${formatDateSeparator(message.createdAt)}`}>
                   <span className="text-[11px] font-medium text-zinc-500 bg-white/80 backdrop-blur-xs border border-zinc-200/70 px-3 py-1 rounded-full shadow-2xs">
@@ -277,7 +277,7 @@ export const MessageTimeline = ({ chatId }: MessageTimelineProps) => {
 
                   <div
                     className={cn(
-                      "px-4 py-2.5 rounded-2xl text-[14px] leading-relaxed shadow-2xs break-words max-w-full transition-opacity duration-150",
+                      "px-4 py-2.5 rounded-2xl text-base leading-relaxed shadow-2xs whitespace-pre-wrap [overflow-wrap:anywhere] min-w-0 max-w-full transition-opacity duration-150",
                       isMe
                         ? "bg-zinc-900 text-white rounded-br-xs"
                         : "bg-white text-zinc-900 rounded-bl-xs border border-zinc-200/80",
@@ -292,7 +292,7 @@ export const MessageTimeline = ({ chatId }: MessageTimelineProps) => {
                 <div
                   className={cn(
                     "flex items-center gap-1.5 mt-1 text-[11px]",
-                    isMe ? "mr-1 text-zinc-400" : "ml-10 text-zinc-400"
+                    isMe ? "mr-1 text-zinc-600" : "ml-10 text-zinc-600"
                   )}
                 >
                   {message.status === 'sending' && (
@@ -307,7 +307,7 @@ export const MessageTimeline = ({ chatId }: MessageTimelineProps) => {
                       <button
                         type="button"
                         onClick={() => sendMessage({ chatId, content: message.content, clientMessageId: message.clientMessageId })}
-                        className="inline-flex items-center gap-1 min-h-[32px] px-1 text-rose-700 hover:text-rose-900 hover:underline font-semibold focus-visible:outline-none"
+                        className="inline-flex items-center gap-1 min-h-[44px] min-w-[44px] px-1 text-rose-700 hover:text-rose-900 hover:underline font-semibold rounded focus-visible:ring-2 focus-visible:ring-rose-700"
                       >
                         <ArrowCounterClockwise size={12} weight="bold" aria-hidden="true" /> Retry
                       </button>
@@ -328,7 +328,7 @@ export const MessageTimeline = ({ chatId }: MessageTimelineProps) => {
         <button
           type="button"
           onClick={scrollToBottom}
-          className="sticky bottom-2 mx-auto bg-zinc-900 text-white text-xs font-semibold px-4 py-2 rounded-full shadow-lg hover:bg-black transition-all z-30 flex items-center gap-1.5 min-h-[36px] focus-visible:ring-2 focus-visible:ring-zinc-900 focus-visible:ring-offset-2 focus-visible:outline-none"
+          className="sticky bottom-2 mx-auto bg-zinc-900 text-white text-xs font-semibold px-4 py-2 rounded-full shadow-lg hover:bg-black transition-all z-30 flex items-center gap-1.5 min-h-[44px] focus-visible:ring-2 focus-visible:ring-zinc-900 focus-visible:ring-offset-2 focus-visible:outline-none"
           aria-label="Scroll to new messages"
         >
           <span>New messages</span>

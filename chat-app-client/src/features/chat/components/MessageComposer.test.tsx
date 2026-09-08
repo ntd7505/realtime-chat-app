@@ -5,6 +5,7 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { MessageComposer } from './MessageComposer';
 import { useSendMessage } from '@/features/chat/hooks/useChats';
 import { useStomp } from '@/lib/websocket/stompContext';
+import { useDraftStore } from '../draftStore';
 
 vi.mock('@/features/chat/hooks/useChats', () => ({
   useSendMessage: vi.fn(),
@@ -20,6 +21,7 @@ describe('MessageComposer', () => {
 
   beforeEach(() => {
     vi.clearAllMocks();
+    useDraftStore.setState({ drafts: {} });
 
     vi.mocked(useStomp).mockReturnValue({
       status: 'connected',
@@ -88,7 +90,41 @@ describe('MessageComposer', () => {
     } as never);
 
     render(<MessageComposer chatId={10} />);
-    expect(screen.getByText(/realtime is reconnecting/i)).toBeInTheDocument();
+    expect(screen.getByText(/send when connected/i)).toBeInTheDocument();
     expect(screen.getByRole('button', { name: /send message/i })).toBeDisabled();
+  });
+
+  it('keeps drafts when moving between conversations', () => {
+    const { rerender } = render(<MessageComposer key={10} chatId={10} />);
+    fireEvent.change(screen.getByRole('textbox'), { target: { value: 'Draft A' } });
+    rerender(<MessageComposer key={11} chatId={11} />);
+    expect(screen.getByRole('textbox')).toHaveValue('');
+    fireEvent.change(screen.getByRole('textbox'), { target: { value: 'Draft B' } });
+    rerender(<MessageComposer key={10} chatId={10} />);
+    expect(screen.getByRole('textbox')).toHaveValue('Draft A');
+  });
+
+  it('allows typing while connecting but blocks publish via Enter and submit', () => {
+    vi.mocked(useStomp).mockReturnValue({ status: 'connecting' } as never);
+    render(<MessageComposer chatId={10} />);
+    const input = screen.getByRole('textbox');
+    expect(input).toBeEnabled();
+    fireEvent.change(input, { target: { value: 'Offline draft' } });
+    fireEvent.keyDown(input, { key: 'Enter' });
+    fireEvent.submit(input.closest('form')!);
+    expect(sendMessage).not.toHaveBeenCalled();
+    expect(input).toHaveValue('Offline draft');
+  });
+
+  it('does not send Enter used to confirm IME input', () => {
+    render(<MessageComposer chatId={10} />);
+    const input = screen.getByRole('textbox');
+    fireEvent.change(input, { target: { value: '日本語' } });
+    fireEvent.compositionStart(input);
+    fireEvent.keyDown(input, { key: 'Enter', isComposing: true });
+    expect(sendMessage).not.toHaveBeenCalled();
+    fireEvent.compositionEnd(input);
+    fireEvent.keyDown(input, { key: 'Enter' });
+    expect(sendMessage).toHaveBeenCalledTimes(1);
   });
 });

@@ -9,13 +9,14 @@ export function AppLayout() {
   const isConnecting = status === 'connecting';
 
   return (
-    <div className="flex flex-col items-center justify-center w-full min-h-[100dvh] bg-[#d8eee2] text-zinc-900 font-sans md:p-6 lg:p-8">
+    <div className="flex flex-col items-center justify-center w-full h-[100dvh] bg-[var(--background-color)] text-zinc-900 font-sans md:p-6 lg:p-8">
+      <div className="flex min-h-0 flex-col w-full h-full md:max-h-[880px] md:max-w-[1240px] md:rounded-[32px] overflow-hidden bg-[var(--shell-color)] md:shadow-[0_24px_50px_rgba(0,0,0,0.06)] relative">
       {/* Realtime Connection Status Banner */}
       {(isDisconnected || isConnecting) && (
         <div
           role="status"
           aria-live="polite"
-          className="w-full bg-amber-600 text-white text-xs font-medium px-4 py-2 text-center fixed top-0 left-0 right-0 z-[100] flex items-center justify-center gap-2 shadow-xs"
+          className="w-full shrink-0 bg-amber-100 text-amber-900 text-sm font-medium px-4 py-2 text-center flex items-center justify-center gap-2"
         >
           {isConnecting ? (
             <>
@@ -31,13 +32,14 @@ export function AppLayout() {
         </div>
       )}
 
-      <div className="flex flex-col md:flex-row w-full h-[100dvh] md:h-[calc(100dvh-3.5rem)] md:max-h-[880px] md:max-w-[1240px] md:rounded-[32px] overflow-hidden bg-[#fdfbf7] md:shadow-[0_24px_50px_rgba(0,0,0,0.06)] md:border md:border-white/80 relative">
+      <div className="flex min-h-0 flex-1 flex-col md:flex-row w-full overflow-hidden">
         <Sidebar />
 
         {/* Main Content Area */}
-        <div className="flex-1 flex flex-col min-w-0 bg-white/60 relative overflow-hidden">
+        <div className="flex-1 flex flex-col min-h-0 min-w-0 bg-white/60 relative overflow-hidden">
           <Outlet />
         </div>
+      </div>
       </div>
     </div>
   );

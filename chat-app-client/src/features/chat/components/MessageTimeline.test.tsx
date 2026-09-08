@@ -47,6 +47,7 @@ describe('MessageTimeline Auto-Scroll Regression', () => {
   beforeEach(() => {
     queryClient = new QueryClient();
     vi.clearAllMocks();
+    Object.defineProperty(window, 'matchMedia', { configurable: true, writable: true, value: vi.fn().mockReturnValue({ matches: false }) });
     
     // Default mocks
     (useAuthStore as any).mockReturnValue(mockUser);
@@ -180,6 +181,17 @@ describe('MessageTimeline Auto-Scroll Regression', () => {
     
     // Should scroll to bottom
     expect(HTMLElement.prototype.scrollTo).toHaveBeenCalledWith({ top: 600, behavior: 'smooth' });
+  });
+
+  it('uses instant scrolling for new messages when reduced motion is enabled', () => {
+    vi.mocked(window.matchMedia).mockReturnValue({ matches: true } as MediaQueryList);
+    const { rerender } = renderComponent({ pages: [{ items: [createMockMessage(1, 'First')] }] });
+    vi.mocked(HTMLElement.prototype.scrollTo).mockClear();
+    vi.mocked(useMessages).mockReturnValue({
+      data: { pages: [{ items: [createMockMessage(2, 'Second'), createMockMessage(1, 'First')] }] },
+    } as never);
+    rerender(<MessageTimeline chatId={1} />);
+    expect(HTMLElement.prototype.scrollTo).toHaveBeenCalledWith({ top: 500, behavior: 'auto' });
   });
 
   it('5. Load tin nhắn cũ: giữ nguyên message đang nhìn', () => {
