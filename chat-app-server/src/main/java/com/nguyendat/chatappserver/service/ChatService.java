@@ -1,5 +1,6 @@
 package com.nguyendat.chatappserver.service;
 
+import com.nguyendat.chatappserver.dto.response.ChatReadResponse;
 import com.nguyendat.chatappserver.dto.response.ChatResponse;
 import com.nguyendat.chatappserver.dto.response.CursorPageResponse;
 import com.nguyendat.chatappserver.model.User;
@@ -11,4 +12,6 @@ public interface ChatService {
   CursorPageResponse<ChatResponse> getMyChats(User currentUser, String cursor, int limit);
 
   ChatResponse getChatById(User currentUser, Long chatId);
+
+  ChatReadResponse markAsRead(User currentUser, Long chatId, Long messageId);
 }

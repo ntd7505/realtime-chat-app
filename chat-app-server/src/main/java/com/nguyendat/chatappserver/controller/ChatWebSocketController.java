@@ -1,18 +1,21 @@
 package com.nguyendat.chatappserver.controller;
 
 import com.nguyendat.chatappserver.dto.request.SendMessageRequest;
-import com.nguyendat.chatappserver.dto.response.MessageResponse;
+import com.nguyendat.chatappserver.dto.response.MessageDeliveryEvent;
+import com.nguyendat.chatappserver.enums.ErrorCode;
+import com.nguyendat.chatappserver.exception.AppException;
 import com.nguyendat.chatappserver.model.User;
 import com.nguyendat.chatappserver.service.MessageService;
-import jakarta.validation.Valid;
+import com.nguyendat.chatappserver.service.result.SendMessageResult;
+import com.nguyendat.chatappserver.websocket.WebSocketPrincipal;
 import java.security.Principal;
+import java.util.UUID;
 import lombok.AccessLevel;
 import lombok.RequiredArgsConstructor;
 import lombok.experimental.FieldDefaults;
 import org.springframework.messaging.handler.annotation.DestinationVariable;
 import org.springframework.messaging.handler.annotation.MessageMapping;
 import org.springframework.messaging.simp.SimpMessagingTemplate;
-import org.springframework.security.core.Authentication;
 import org.springframework.stereotype.Controller;
 import org.springframework.validation.annotation.Validated;
 
@@ -27,23 +30,54 @@ public class ChatWebSocketController {
 
   @MessageMapping("/chats/{chatId}/messages")
   public void sendMessage(
-      @DestinationVariable Long chatId, @Valid SendMessageRequest request, Principal principal) {
+      @DestinationVariable Long chatId, SendMessageRequest request, Principal principal) {
     User currentUser = extractUser(principal);
 
-    MessageResponse response = messageService.sendMessage(request, chatId, currentUser);
+    try {
+      validateRequest(request);
+      SendMessageResult result = messageService.sendMessage(request, chatId, currentUser);
+      sendToCurrentUser(
+          principal,
+          MessageDeliveryEvent.builder()
+              .type(com.nguyendat.chatappserver.realtime.RealtimeEventType.MESSAGE_ACK)
+              .chatId(chatId)
+              .clientMessageId(request.getClientMessageId())
+              .message(result.message())
+              .duplicate(!result.created())
+              .build());
+    } catch (AppException exception) {
+      ErrorCode errorCode = exception.getErrorCode();
+      sendToCurrentUser(
+          principal,
+          MessageDeliveryEvent.builder()
+              .type(com.nguyendat.chatappserver.realtime.RealtimeEventType.MESSAGE_REJECTED)
+              .chatId(chatId)
+              .clientMessageId(request.getClientMessageId())
+              .code(errorCode.getCode())
+              .error(errorCode.getMessage())
+              .build());
+    }
+  }
 
-    messagingTemplate.convertAndSend("/topic/chats/" + chatId, response);
+  private void validateRequest(SendMessageRequest request) {
+    UUID clientMessageId = request.getClientMessageId();
+    String content = request.getContent();
+    if (clientMessageId == null
+        || content == null
+        || content.isBlank()
+        || content.length() > 5000) {
+      throw new AppException(ErrorCode.INVALID_REQUEST);
+    }
   }
 
   private User extractUser(Principal principal) {
-    if (!(principal instanceof Authentication authentication)) {
-      throw new IllegalStateException("WebSocket principal is not authenticated");
-    }
-
-    if (!(authentication.getPrincipal() instanceof User user)) {
+    if (!(principal instanceof WebSocketPrincipal websocketPrincipal)) {
       throw new IllegalStateException("Invalid WebSocket principal");
     }
+    return websocketPrincipal.user();
+  }
 
-    return user;
+  private void sendToCurrentUser(Principal principal, MessageDeliveryEvent event) {
+    messagingTemplate.convertAndSendToUser(principal.getName(), "/queue/message-events", event);
   }
 }

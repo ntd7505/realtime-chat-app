@@ -11,6 +11,7 @@ import com.nguyendat.chatappserver.dto.request.SendMessageRequest;
 import com.nguyendat.chatappserver.dto.response.MessageResponse;
 import com.nguyendat.chatappserver.enums.ChatType;
 import com.nguyendat.chatappserver.enums.ErrorCode;
+import com.nguyendat.chatappserver.event.MessageCreatedEvent;
 import com.nguyendat.chatappserver.exception.AppException;
 import com.nguyendat.chatappserver.mapper.MessageMapper;
 import com.nguyendat.chatappserver.model.Chat;
@@ -27,6 +28,7 @@ import org.mockito.ArgumentCaptor;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
+import org.springframework.context.ApplicationEventPublisher;
 
 @ExtendWith(MockitoExtension.class)
 class MessageCreatorTest {
@@ -34,6 +36,7 @@ class MessageCreatorTest {
   @Mock MessageRepository messageRepository;
   @Mock MessageMapper messageMapper;
   @Mock ChatRepository chatRepository;
+  @Mock ApplicationEventPublisher eventPublisher;
 
   @InjectMocks MessageCreator messageCreator;
 
@@ -71,7 +74,7 @@ class MessageCreatorTest {
     given(messageRepository.saveAndFlush(any(Message.class))).willReturn(savedMessage);
     given(messageMapper.toMessageResponse(savedMessage)).willReturn(expected);
 
-    MessageResponse actual = messageCreator.create(request, 10L, sender);
+    MessageResponse actual = messageCreator.create(request, 10L, sender, 2L);
 
     assertThat(actual).isSameAs(expected);
     assertThat(chat.getLastMessageAt()).isEqualTo(createdAt);
@@ -86,6 +89,14 @@ class MessageCreatorTest {
     assertThat(messageToSave.getSender()).isSameAs(sender);
     assertThat(messageToSave.getClientMessageId()).isEqualTo(request.getClientMessageId());
     assertThat(messageToSave.getContent()).isEqualTo("Hello");
+
+    ArgumentCaptor<MessageCreatedEvent> eventCaptor =
+        ArgumentCaptor.forClass(MessageCreatedEvent.class);
+    then(eventPublisher).should().publishEvent(eventCaptor.capture());
+    assertThat(eventCaptor.getValue().chatId()).isEqualTo(10L);
+    assertThat(eventCaptor.getValue().senderId()).isEqualTo(1L);
+    assertThat(eventCaptor.getValue().recipientId()).isEqualTo(2L);
+    assertThat(eventCaptor.getValue().message()).isSameAs(expected);
   }
 
   @Test
@@ -98,7 +109,7 @@ class MessageCreatorTest {
 
     given(chatRepository.findByIdForUpdate(99L)).willReturn(Optional.empty());
 
-    assertThatThrownBy(() -> messageCreator.create(request, 99L, sender))
+    assertThatThrownBy(() -> messageCreator.create(request, 99L, sender, 2L))
         .isInstanceOfSatisfying(
             AppException.class,
             exception -> assertThat(exception.getErrorCode()).isEqualTo(ErrorCode.CHAT_NOT_FOUND));

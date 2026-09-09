@@ -1,14 +1,17 @@
 package com.nguyendat.chatappserver.service.impl;
 
+import com.nguyendat.chatappserver.dto.response.FriendshipChangedPayload;
 import com.nguyendat.chatappserver.dto.response.FriendshipResponse;
 import com.nguyendat.chatappserver.dto.response.UserSummaryResponse;
 import com.nguyendat.chatappserver.enums.ErrorCode;
 import com.nguyendat.chatappserver.enums.FriendshipStatus;
+import com.nguyendat.chatappserver.event.FriendshipChangedEvent;
 import com.nguyendat.chatappserver.exception.AppException;
 import com.nguyendat.chatappserver.mapper.FriendshipMapper;
 import com.nguyendat.chatappserver.mapper.UserMapper;
 import com.nguyendat.chatappserver.model.Friendship;
 import com.nguyendat.chatappserver.model.User;
+import com.nguyendat.chatappserver.realtime.RealtimeEventType;
 import com.nguyendat.chatappserver.repository.FriendshipRepository;
 import com.nguyendat.chatappserver.repository.UserBlockRepository;
 import com.nguyendat.chatappserver.repository.UserRepository;
@@ -16,9 +19,11 @@ import com.nguyendat.chatappserver.service.FriendshipService;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Objects;
+import java.util.Set;
 import lombok.AccessLevel;
 import lombok.RequiredArgsConstructor;
 import lombok.experimental.FieldDefaults;
+import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.stereotype.Service;
@@ -34,6 +39,7 @@ public class FriendshipServiceImpl implements FriendshipService {
   UserMapper userMapper;
   FriendshipRepository friendshipRepository;
   FriendshipMapper friendshipMapper;
+  ApplicationEventPublisher eventPublisher;
 
   @Override
   @Transactional
@@ -75,7 +81,10 @@ public class FriendshipServiceImpl implements FriendshipService {
 
     Friendship savedFriendship = friendshipRepository.save(friendship);
 
-    return friendshipMapper.toFriendshipResponse(savedFriendship, user.getId());
+    FriendshipResponse response =
+        friendshipMapper.toFriendshipResponse(savedFriendship, user.getId());
+    publishFriendshipChange(RealtimeEventType.FRIENDSHIP_REQUESTED, savedFriendship);
+    return response;
   }
 
   @Override
@@ -96,13 +105,21 @@ public class FriendshipServiceImpl implements FriendshipService {
 
     Friendship savedFriendship = friendshipRepository.save(friendship);
 
-    return friendshipMapper.toFriendshipResponse(savedFriendship, currentUser.getId());
+    FriendshipResponse response =
+        friendshipMapper.toFriendshipResponse(savedFriendship, currentUser.getId());
+    publishFriendshipChange(RealtimeEventType.FRIENDSHIP_ACCEPTED, savedFriendship);
+    return response;
   }
 
   @Override
   @Transactional
   public void deleteFriendRequest(Long userId) {
     User currentUser = getCurrentUser();
+    Friendship friendship =
+        friendshipRepository
+            .findRelationshipBetween(currentUser.getId(), userId)
+            .filter(value -> value.getStatus() == FriendshipStatus.PENDING)
+            .orElseThrow(() -> new AppException(ErrorCode.FRIEND_REQUEST_NOT_FOUND));
 
     int deletedRows =
         friendshipRepository.deleteFriendRequest(
@@ -110,17 +127,25 @@ public class FriendshipServiceImpl implements FriendshipService {
     if (deletedRows == 0) {
       throw new AppException(ErrorCode.FRIEND_REQUEST_NOT_FOUND);
     }
+    publishFriendshipChange(RealtimeEventType.FRIENDSHIP_DELETED, friendship);
   }
 
   @Override
   @Transactional
   public void unfriend(User currentUser, Long userId) {
+    Friendship friendship =
+        friendshipRepository
+            .findRelationshipBetween(currentUser.getId(), userId)
+            .filter(value -> value.getStatus() == FriendshipStatus.ACCEPTED)
+            .orElseThrow(() -> new AppException(ErrorCode.FRIENDSHIP_NOT_FOUND));
+
     int deletedRows =
         friendshipRepository.unfriend(currentUser.getId(), userId, FriendshipStatus.ACCEPTED);
 
     if (deletedRows == 0) {
       throw new AppException(ErrorCode.FRIENDSHIP_NOT_FOUND);
     }
+    publishFriendshipChange(RealtimeEventType.FRIENDSHIP_DELETED, friendship);
   }
 
   @Override
@@ -157,6 +182,31 @@ public class FriendshipServiceImpl implements FriendshipService {
         .map(Friendship::getRequester)
         .map(userMapper::toUserSummaryResponse)
         .toList();
+  }
+
+  @Override
+  @Transactional(readOnly = true)
+  public List<UserSummaryResponse> getSentFriendRequests(User currentUser) {
+    return friendshipRepository
+        .findAllSentRequests(currentUser.getId(), FriendshipStatus.PENDING)
+        .stream()
+        .map(Friendship::getRecipient)
+        .map(userMapper::toUserSummaryResponse)
+        .toList();
+  }
+
+  private void publishFriendshipChange(String type, Friendship friendship) {
+    FriendshipChangedPayload payload =
+        new FriendshipChangedPayload(
+            friendship.getId(),
+            friendship.getRequester().getId(),
+            friendship.getRecipient().getId(),
+            friendship.getStatus());
+    eventPublisher.publishEvent(
+        new FriendshipChangedEvent(
+            type,
+            Set.of(friendship.getRequester().getId(), friendship.getRecipient().getId()),
+            payload));
   }
 
   private User getCurrentUser() {

@@ -52,6 +52,14 @@ public class FriendshipController {
     return ResponseEntity.ok(ApiResponse.success(ResponseCode.FRIEND_REQUESTS_RETRIEVED, result));
   }
 
+  @GetMapping("/requests/sent")
+  public ResponseEntity<ApiResponse<List<UserSummaryResponse>>> getSentFriendRequests(
+      @AuthenticationPrincipal User currentUser) {
+    List<UserSummaryResponse> result = friendshipService.getSentFriendRequests(currentUser);
+    return ResponseEntity.ok(
+        ApiResponse.success(ResponseCode.SENT_FRIEND_REQUESTS_RETRIEVED, result));
+  }
+
   @DeleteMapping("/requests/{userId}")
   public ResponseEntity<?> cancelFriendRequest(@PathVariable Long userId) {
     friendshipService.deleteFriendRequest(userId);

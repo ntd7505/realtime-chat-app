@@ -3,6 +3,7 @@ package com.nguyendat.chatappserver.service.impl;
 import com.nguyendat.chatappserver.dto.request.SendMessageRequest;
 import com.nguyendat.chatappserver.dto.response.MessageResponse;
 import com.nguyendat.chatappserver.enums.ErrorCode;
+import com.nguyendat.chatappserver.event.MessageCreatedEvent;
 import com.nguyendat.chatappserver.exception.AppException;
 import com.nguyendat.chatappserver.mapper.MessageMapper;
 import com.nguyendat.chatappserver.model.Chat;
@@ -13,6 +14,7 @@ import com.nguyendat.chatappserver.repository.MessageRepository;
 import lombok.AccessLevel;
 import lombok.RequiredArgsConstructor;
 import lombok.experimental.FieldDefaults;
+import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Propagation;
 import org.springframework.transaction.annotation.Transactional;
@@ -25,9 +27,11 @@ public class MessageCreator {
   MessageRepository messageRepository;
   MessageMapper messageMapper;
   ChatRepository chatRepository;
+  ApplicationEventPublisher eventPublisher;
 
   @Transactional(propagation = Propagation.REQUIRES_NEW)
-  public MessageResponse create(SendMessageRequest request, Long chatId, User sender) {
+  public MessageResponse create(
+      SendMessageRequest request, Long chatId, User sender, Long recipientId) {
 
     Chat chat =
         chatRepository
@@ -44,6 +48,10 @@ public class MessageCreator {
 
     chat.setLastMessageAt(savedMessage.getCreatedAt());
 
-    return messageMapper.toMessageResponse(savedMessage);
+    MessageResponse response = messageMapper.toMessageResponse(savedMessage);
+    eventPublisher.publishEvent(
+        new MessageCreatedEvent(chatId, sender.getId(), recipientId, response));
+
+    return response;
   }
 }

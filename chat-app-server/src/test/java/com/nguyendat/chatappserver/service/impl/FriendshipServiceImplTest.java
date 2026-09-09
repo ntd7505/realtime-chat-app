@@ -32,6 +32,7 @@ import org.mockito.ArgumentCaptor;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
+import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.security.core.context.SecurityContextHolder;
 
@@ -43,6 +44,7 @@ class FriendshipServiceImplTest {
   @Mock UserMapper userMapper;
   @Mock FriendshipRepository friendshipRepository;
   @Mock FriendshipMapper friendshipMapper;
+  @Mock ApplicationEventPublisher eventPublisher;
 
   @InjectMocks FriendshipServiceImpl friendshipService;
 
@@ -219,6 +221,29 @@ class FriendshipServiceImplTest {
       List<UserSummaryResponse> actual = friendshipService.getFriendList(currentUser);
 
       assertThat(actual).containsExactly(aliceResponse, bobResponse);
+    }
+  }
+
+  @Nested
+  class GetSentFriendRequests {
+
+    @Test
+    void shouldReturnRecipientsOfPendingRequests() {
+      User currentUser = user(1L, "current@example.com", "Current");
+      User recipient = user(2L, "recipient@example.com", "Recipient");
+      Friendship friendship =
+          Friendship.builder()
+              .requester(currentUser)
+              .recipient(recipient)
+              .status(FriendshipStatus.PENDING)
+              .build();
+      UserSummaryResponse expected = userSummary(2L, "Recipient");
+
+      given(friendshipRepository.findAllSentRequests(1L, FriendshipStatus.PENDING))
+          .willReturn(List.of(friendship));
+      given(userMapper.toUserSummaryResponse(recipient)).willReturn(expected);
+
+      assertThat(friendshipService.getSentFriendRequests(currentUser)).containsExactly(expected);
     }
   }
 

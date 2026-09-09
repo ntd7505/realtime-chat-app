@@ -4,6 +4,7 @@ import com.nguyendat.chatappserver.dto.request.SendMessageRequest;
 import com.nguyendat.chatappserver.dto.response.ApiResponse;
 import com.nguyendat.chatappserver.dto.response.CursorPageResponse;
 import com.nguyendat.chatappserver.dto.response.MessageResponse;
+import com.nguyendat.chatappserver.dto.response.MessageSyncResponse;
 import com.nguyendat.chatappserver.enums.ResponseCode;
 import com.nguyendat.chatappserver.model.User;
 import com.nguyendat.chatappserver.service.MessageService;
@@ -44,6 +45,17 @@ public class MessageController {
 
     var rs = messageService.sendMessage(request, chatId, currentUser);
 
-    return ResponseEntity.ok(ApiResponse.success(ResponseCode.MESSAGE_SENT, rs));
+    return ResponseEntity.ok(ApiResponse.success(ResponseCode.MESSAGE_SENT, rs.message()));
+  }
+
+  @GetMapping("/{chatId}/messages/sync")
+  public ResponseEntity<ApiResponse<MessageSyncResponse>> syncMessages(
+      @AuthenticationPrincipal User currentUser,
+      @PathVariable Long chatId,
+      @RequestParam Long afterMessageId,
+      @RequestParam(defaultValue = "100") int limit) {
+    MessageSyncResponse result =
+        messageService.getMessagesAfter(currentUser, chatId, afterMessageId, limit);
+    return ResponseEntity.ok(ApiResponse.success(ResponseCode.MESSAGES_SYNCHRONIZED, result));
   }
 }

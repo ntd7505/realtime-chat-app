@@ -73,6 +73,7 @@ public enum ErrorCode {
       "Không thể gửi tin nhắn vì một trong hai người dùng đã chặn người còn lại",
       HttpStatus.FORBIDDEN),
   TOKEN_EXPIRED(2035, "Token đã hết hạn", HttpStatus.UNAUTHORIZED),
+  MESSAGE_NOT_FOUND(2036, "Không tìm thấy tin nhắn", HttpStatus.NOT_FOUND),
   ;
 
   private final int code;

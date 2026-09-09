@@ -1,13 +1,13 @@
 package com.nguyendat.chatappserver.repository;
 
 import com.nguyendat.chatappserver.model.ChatMember;
-
+import jakarta.persistence.LockModeType;
 import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Optional;
-
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.jpa.repository.Lock;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 import org.springframework.stereotype.Repository;
@@ -15,8 +15,8 @@ import org.springframework.stereotype.Repository;
 @Repository
 public interface ChatMemberRepository extends JpaRepository<ChatMember, Long> {
 
-    @Query(
-            """
+  @Query(
+      """
                     SELECT otherMember
                     FROM ChatMember myMember
                     JOIN ChatMember otherMember
@@ -28,13 +28,11 @@ public interface ChatMemberRepository extends JpaRepository<ChatMember, Long> {
                     ORDER BY COALESCE(chat.lastMessageAt, chat.createdAt) DESC,
                              chat.id DESC
                     """)
-    List<ChatMember> findFirstDirectChatsByUserId(
-            @Param("currentUserId") Long currentUserId,
-            Pageable pageable);
+  List<ChatMember> findFirstDirectChatsByUserId(
+      @Param("currentUserId") Long currentUserId, Pageable pageable);
 
-
-    @Query(
-            """
+  @Query(
+      """
                     SELECT otherMember
                     FROM ChatMember myMember
                     JOIN ChatMember otherMember
@@ -53,16 +51,28 @@ public interface ChatMemberRepository extends JpaRepository<ChatMember, Long> {
                     ORDER BY COALESCE(chat.lastMessageAt, chat.createdAt) DESC,
                              chat.id DESC
                     """)
-    List<ChatMember> findDirectChatsBeforeCursor(
-            @Param("currentUserId") Long currentUserId,
-            @Param("cursorTime") LocalDateTime cursorTime,
-            @Param("cursorChatId") Long cursorChatId,
-            Pageable pageable);
+  List<ChatMember> findDirectChatsBeforeCursor(
+      @Param("currentUserId") Long currentUserId,
+      @Param("cursorTime") LocalDateTime cursorTime,
+      @Param("cursorChatId") Long cursorChatId,
+      Pageable pageable);
 
-    boolean existsByChat_IdAndUser_Id(Long chatId, Long userId);
+  boolean existsByChat_IdAndUser_Id(Long chatId, Long userId);
 
-    @Query(
-            """
+  @Lock(LockModeType.PESSIMISTIC_WRITE)
+  @Query(
+      """
+            SELECT member
+            FROM ChatMember member
+            LEFT JOIN FETCH member.lastReadMessage
+            WHERE member.chat.id = :chatId
+              AND member.user.id = :userId
+            """)
+  Optional<ChatMember> findMemberForReadUpdate(
+      @Param("chatId") Long chatId, @Param("userId") Long userId);
+
+  @Query(
+      """
                     SELECT otherMember
                     FROM ChatMember currentMember
                     JOIN ChatMember otherMember
@@ -74,6 +84,6 @@ public interface ChatMemberRepository extends JpaRepository<ChatMember, Long> {
                       AND otherMember.user.id <> :currentUserId
                       AND otherMember.chat.type = com.nguyendat.chatappserver.enums.ChatType.DIRECT
                     """)
-    Optional<ChatMember> findDirectChatForUser(
-            @Param("chatId") Long chatId, @Param("currentUserId") Long currentUserId);
+  Optional<ChatMember> findDirectChatForUser(
+      @Param("chatId") Long chatId, @Param("currentUserId") Long currentUserId);
 }

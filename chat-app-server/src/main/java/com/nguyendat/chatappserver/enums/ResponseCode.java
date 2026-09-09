@@ -25,6 +25,9 @@ public enum ResponseCode {
   MESSAGE_HISTORY_RETRIEVED(1016, "Lấy lịch sử tin nhắn thành công"),
   MESSAGE_SENT(1017, "Gửi tin nhắn thành công"),
   CHAT_RETRIEVED(1018, "Lấy thông tin cuộc trò chuyện thành công"),
+  SENT_FRIEND_REQUESTS_RETRIEVED(1019, "Lấy danh sách lời mời đã gửi thành công"),
+  CHAT_READ_UPDATED(1020, "Đã cập nhật trạng thái đọc"),
+  MESSAGES_SYNCHRONIZED(1021, "Đồng bộ tin nhắn thành công"),
   ;
 
   private final int code;

@@ -18,4 +18,6 @@ public interface FriendshipService {
   List<UserSummaryResponse> getFriendList(User currentUser);
 
   List<UserSummaryResponse> getReceivedFriendRequests(User currentUser);
+
+  List<UserSummaryResponse> getSentFriendRequests(User currentUser);
 }

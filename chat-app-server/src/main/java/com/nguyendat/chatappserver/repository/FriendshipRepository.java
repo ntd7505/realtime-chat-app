@@ -87,6 +87,18 @@ public interface FriendshipRepository extends JpaRepository<Friendship, Long> {
   List<Friendship> findAllReceivedRequests(
       @Param("currentUserId") Long currentUserId, @Param("status") FriendshipStatus status);
 
+  @Query(
+      """
+      SELECT friendship
+      FROM Friendship friendship
+      JOIN FETCH friendship.recipient
+      WHERE friendship.requester.id = :currentUserId
+        AND friendship.status = :status
+      ORDER BY friendship.createdAt DESC
+      """)
+  List<Friendship> findAllSentRequests(
+      @Param("currentUserId") Long currentUserId, @Param("status") FriendshipStatus status);
+
   @Modifying
   @Query(
       """

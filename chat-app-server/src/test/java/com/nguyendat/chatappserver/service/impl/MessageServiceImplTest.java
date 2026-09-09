@@ -11,15 +11,18 @@ import static org.mockito.BDDMockito.then;
 import com.nguyendat.chatappserver.dto.request.SendMessageRequest;
 import com.nguyendat.chatappserver.dto.response.CursorPageResponse;
 import com.nguyendat.chatappserver.dto.response.MessageResponse;
+import com.nguyendat.chatappserver.dto.response.MessageSyncResponse;
 import com.nguyendat.chatappserver.enums.ErrorCode;
 import com.nguyendat.chatappserver.exception.AppException;
 import com.nguyendat.chatappserver.mapper.MessageMapper;
+import com.nguyendat.chatappserver.model.Chat;
 import com.nguyendat.chatappserver.model.ChatMember;
 import com.nguyendat.chatappserver.model.Message;
 import com.nguyendat.chatappserver.model.User;
 import com.nguyendat.chatappserver.repository.ChatMemberRepository;
 import com.nguyendat.chatappserver.repository.MessageRepository;
 import com.nguyendat.chatappserver.repository.UserBlockRepository;
+import com.nguyendat.chatappserver.service.result.SendMessageResult;
 import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
@@ -55,7 +58,9 @@ class MessageServiceImplTest {
       assertAppError(
           () -> messageService.sendMessage(request, 10L, sender), ErrorCode.CHAT_NOT_FOUND);
 
-      then(messageRepository).shouldHaveNoInteractions();
+      then(messageRepository)
+          .should()
+          .findMessageBySender_IdAndClientMessageId(1L, request.getClientMessageId());
       then(messageCreator).shouldHaveNoInteractions();
       then(userBlockRepository).shouldHaveNoInteractions();
     }
@@ -74,18 +79,22 @@ class MessageServiceImplTest {
           () -> messageService.sendMessage(request, 10L, sender),
           ErrorCode.CANNOT_MESSAGE_BLOCKED_USER);
 
-      then(messageRepository).shouldHaveNoInteractions();
+      then(messageRepository)
+          .should()
+          .findMessageBySender_IdAndClientMessageId(1L, request.getClientMessageId());
       then(messageCreator).shouldHaveNoInteractions();
     }
 
     @Test
     void shouldReturnExistingMessage_whenClientMessageIdWasAlreadyUsed() {
       User sender = user(1L, "sender@example.com", "Sender");
-      User recipient = user(2L, "recipient@example.com", "Recipient");
       SendMessageRequest request = sendRequest();
 
       Message existing = new Message();
+      Chat chat = new Chat();
+      chat.setId(10L);
       existing.setId(100L);
+      existing.setChat(chat);
       existing.setSender(sender);
       existing.setClientMessageId(request.getClientMessageId());
       existing.setContent(request.getContent());
@@ -97,18 +106,18 @@ class MessageServiceImplTest {
               .content(request.getContent())
               .build();
 
-      given(chatMemberRepository.findDirectChatForUser(10L, 1L))
-          .willReturn(Optional.of(otherMember(recipient)));
-      given(userBlockRepository.existsBlockBetween(1L, 2L)).willReturn(false);
       given(
               messageRepository.findMessageBySender_IdAndClientMessageId(
                   1L, request.getClientMessageId()))
           .willReturn(Optional.of(existing));
       given(messageMapper.toMessageResponse(existing)).willReturn(expected);
 
-      MessageResponse actual = messageService.sendMessage(request, 10L, sender);
+      SendMessageResult actual = messageService.sendMessage(request, 10L, sender);
 
-      assertThat(actual).isSameAs(expected);
+      assertThat(actual.message()).isSameAs(expected);
+      assertThat(actual.created()).isFalse();
+      then(chatMemberRepository).shouldHaveNoInteractions();
+      then(userBlockRepository).shouldHaveNoInteractions();
       then(messageCreator).shouldHaveNoInteractions();
     }
 
@@ -132,12 +141,66 @@ class MessageServiceImplTest {
               messageRepository.findMessageBySender_IdAndClientMessageId(
                   1L, request.getClientMessageId()))
           .willReturn(Optional.empty());
-      given(messageCreator.create(request, 10L, sender)).willReturn(expected);
+      given(messageCreator.create(request, 10L, sender, 2L)).willReturn(expected);
 
-      MessageResponse actual = messageService.sendMessage(request, 10L, sender);
+      SendMessageResult actual = messageService.sendMessage(request, 10L, sender);
 
-      assertThat(actual).isSameAs(expected);
-      then(messageCreator).should().create(request, 10L, sender);
+      assertThat(actual.message()).isSameAs(expected);
+      assertThat(actual.created()).isTrue();
+      then(messageCreator).should().create(request, 10L, sender, 2L);
+    }
+
+    @Test
+    void shouldRejectRetry_whenClientMessageIdIsReusedWithDifferentContent() {
+      User sender = user(1L, "sender@example.com", "Sender");
+      User recipient = user(2L, "recipient@example.com", "Recipient");
+      SendMessageRequest request = sendRequest();
+      Chat chat = new Chat();
+      chat.setId(10L);
+      Message existing = new Message();
+      existing.setChat(chat);
+      existing.setContent("Different content");
+
+      given(
+              messageRepository.findMessageBySender_IdAndClientMessageId(
+                  1L, request.getClientMessageId()))
+          .willReturn(Optional.of(existing));
+
+      assertAppError(
+          () -> messageService.sendMessage(request, 10L, sender), ErrorCode.INVALID_REQUEST);
+      then(messageCreator).shouldHaveNoInteractions();
+    }
+  }
+
+  @Nested
+  class GetMessagesAfter {
+
+    @Test
+    void shouldReturnOnlyMessagesAfterTheLastSeenMessage() {
+      User currentUser = user(1L, "user@example.com", "User");
+      Message first = new Message();
+      first.setId(101L);
+      Message second = new Message();
+      second.setId(102L);
+      MessageResponse firstResponse = MessageResponse.builder().id(101L).build();
+      MessageResponse secondResponse = MessageResponse.builder().id(102L).build();
+
+      given(chatMemberRepository.existsByChat_IdAndUser_Id(10L, 1L)).willReturn(true);
+      given(messageRepository.existsByIdAndChat_Id(100L, 10L)).willReturn(true);
+      given(
+              messageRepository.findMessagesAfter(
+                  org.mockito.ArgumentMatchers.eq(10L),
+                  org.mockito.ArgumentMatchers.eq(100L),
+                  any(Pageable.class)))
+          .willReturn(List.of(first, second));
+      given(messageMapper.toMessageResponse(first)).willReturn(firstResponse);
+      given(messageMapper.toMessageResponse(second)).willReturn(secondResponse);
+
+      MessageSyncResponse result = messageService.getMessagesAfter(currentUser, 10L, 100L, 10);
+
+      assertThat(result.items()).containsExactly(firstResponse, secondResponse);
+      assertThat(result.hasMore()).isFalse();
+      assertThat(result.nextAfterMessageId()).isNull();
     }
   }
 

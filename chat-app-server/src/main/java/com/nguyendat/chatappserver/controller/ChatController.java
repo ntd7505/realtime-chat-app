@@ -1,11 +1,14 @@
 package com.nguyendat.chatappserver.controller;
 
+import com.nguyendat.chatappserver.dto.request.MarkChatReadRequest;
 import com.nguyendat.chatappserver.dto.response.ApiResponse;
+import com.nguyendat.chatappserver.dto.response.ChatReadResponse;
 import com.nguyendat.chatappserver.dto.response.ChatResponse;
 import com.nguyendat.chatappserver.dto.response.CursorPageResponse;
 import com.nguyendat.chatappserver.enums.ResponseCode;
 import com.nguyendat.chatappserver.model.User;
 import com.nguyendat.chatappserver.service.ChatService;
+import jakarta.validation.Valid;
 import lombok.AccessLevel;
 import lombok.RequiredArgsConstructor;
 import lombok.experimental.FieldDefaults;
@@ -46,5 +49,14 @@ public class ChatController {
     ChatResponse result = chatService.getChatById(currentUser, chatId);
 
     return ResponseEntity.ok(ApiResponse.success(ResponseCode.CHAT_RETRIEVED, result));
+  }
+
+  @PatchMapping("/{chatId}/read")
+  public ResponseEntity<ApiResponse<ChatReadResponse>> markAsRead(
+      @AuthenticationPrincipal User currentUser,
+      @PathVariable Long chatId,
+      @Valid @RequestBody MarkChatReadRequest request) {
+    ChatReadResponse result = chatService.markAsRead(currentUser, chatId, request.messageId());
+    return ResponseEntity.ok(ApiResponse.success(ResponseCode.CHAT_READ_UPDATED, result));
   }
 }

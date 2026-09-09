@@ -4,8 +4,8 @@ import com.nguyendat.chatappserver.model.User;
 import com.nguyendat.chatappserver.repository.ChatMemberRepository;
 import com.nguyendat.chatappserver.repository.UserRepository;
 import com.nguyendat.chatappserver.service.impl.JwtService;
+import com.nguyendat.chatappserver.websocket.WebSocketPrincipal;
 import java.security.Principal;
-import java.util.List;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 import lombok.RequiredArgsConstructor;
@@ -18,8 +18,6 @@ import org.springframework.messaging.simp.stomp.StompCommand;
 import org.springframework.messaging.simp.stomp.StompHeaderAccessor;
 import org.springframework.messaging.support.ChannelInterceptor;
 import org.springframework.messaging.support.MessageHeaderAccessor;
-import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
-import org.springframework.security.core.Authentication;
 import org.springframework.stereotype.Component;
 
 @Component
@@ -30,6 +28,8 @@ public class WebSocketAuthChannelInterceptor implements ChannelInterceptor {
   private static final Pattern CHAT_TOPIC_PATTERN = Pattern.compile("^/topic/chats/(\\d+)$");
 
   private static final Pattern CHAT_SEND_PATTERN = Pattern.compile("^/app/chats/(\\d+)/messages$");
+  private static final String USER_EVENTS_DESTINATION = "/user/queue/events";
+  private static final String USER_MESSAGE_EVENTS_DESTINATION = "/user/queue/message-events";
 
   private final JwtService jwtService;
   private final UserRepository userRepository;
@@ -89,13 +89,11 @@ public class WebSocketAuthChannelInterceptor implements ChannelInterceptor {
             .findById(userId)
             .orElseThrow(() -> new MessageDeliveryException("User not found"));
 
-    Authentication authentication = new UsernamePasswordAuthenticationToken(user, null, List.of());
-
-    accessor.setUser(authentication);
+    accessor.setUser(new WebSocketPrincipal(user));
   }
 
   private void authorizeSend(StompHeaderAccessor accessor) {
-    User currentUser = getCurrentUser(accessor);
+    getCurrentUser(accessor);
     String destination = accessor.getDestination();
 
     if (destination == null) {
@@ -107,14 +105,6 @@ public class WebSocketAuthChannelInterceptor implements ChannelInterceptor {
     if (!matcher.matches()) {
       throw new MessageDeliveryException("Invalid send destination");
     }
-
-    Long chatId = Long.valueOf(matcher.group(1));
-
-    boolean isMember = chatMemberRepository.existsByChat_IdAndUser_Id(chatId, currentUser.getId());
-
-    if (!isMember) {
-      throw new MessageDeliveryException("User is not a member of this chat");
-    }
   }
 
   private void authorizeSubscribe(StompHeaderAccessor accessor) {
@@ -124,6 +114,11 @@ public class WebSocketAuthChannelInterceptor implements ChannelInterceptor {
 
     if (destination == null) {
       throw new MessageDeliveryException("Destination is missing");
+    }
+
+    if (USER_EVENTS_DESTINATION.equals(destination)
+        || USER_MESSAGE_EVENTS_DESTINATION.equals(destination)) {
+      return;
     }
 
     Matcher matcher = CHAT_TOPIC_PATTERN.matcher(destination);
@@ -145,14 +140,10 @@ public class WebSocketAuthChannelInterceptor implements ChannelInterceptor {
 
     Principal principal = accessor.getUser();
 
-    if (!(principal instanceof Authentication authentication)) {
-      throw new MessageDeliveryException("WebSocket session is not authenticated");
-    }
-
-    if (!(authentication.getPrincipal() instanceof User user)) {
+    if (!(principal instanceof WebSocketPrincipal websocketPrincipal)) {
       throw new MessageDeliveryException("Invalid WebSocket principal");
     }
 
-    return user;
+    return websocketPrincipal.user();
   }
 }

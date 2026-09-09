@@ -20,6 +20,8 @@ public class ChatResponse {
 
   MessageResponse lastMessage;
 
+  long unreadCount;
+
   LocalDateTime lastMessageAt;
 
   LocalDateTime createdAt;

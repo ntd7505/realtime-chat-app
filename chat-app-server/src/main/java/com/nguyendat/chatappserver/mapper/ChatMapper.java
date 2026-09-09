@@ -19,6 +19,7 @@ public interface ChatMapper {
   @Mapping(target = "otherUser", source = "otherUser")
   @Mapping(target = "lastMessageAt", source = "chat.lastMessageAt")
   @Mapping(target = "lastMessage", source = "lastMessage")
+  @Mapping(target = "unreadCount", source = "unreadCount")
   @Mapping(target = "createdAt", source = "chat.createdAt")
-  ChatResponse toChatResponse(Chat chat, User otherUser, Message lastMessage);
+  ChatResponse toChatResponse(Chat chat, User otherUser, Message lastMessage, long unreadCount);
 }
