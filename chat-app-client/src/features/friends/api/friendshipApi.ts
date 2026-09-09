@@ -16,6 +16,13 @@ export const friendshipApi = {
     return response.data.data;
   },
 
+  getSentRequests: async (): Promise<UserSummary[]> => {
+    const response = await apiClient.get<ApiResponse<UserSummary[]>>(
+      '/friends/requests/sent'
+    );
+    return response.data.data;
+  },
+
   sendRequest: async (userId: number): Promise<Friendship> => {
     const response = await apiClient.post<ApiResponse<Friendship>>(
       `/friends/requests/${userId}`

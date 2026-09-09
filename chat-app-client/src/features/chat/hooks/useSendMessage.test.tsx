@@ -47,7 +47,13 @@ it('inserts into real history cache and reconciles ACK without duplicate bubbles
   expect(items().find((m) => m.clientMessageId === variables.clientMessageId)?.status).toBe('sending');
   // Model a refetch that sees the persisted message before the ACK reaches the sender.
   client.setQueryData<MessageHistory>(key, { pages: [{ items: [confirmed, oldMessage], hasNext: true, nextCursor: 'older' }], pageParams: [null] });
-  act(() => receive({ body: JSON.stringify(confirmed) } as IMessage));
+  act(() => receive({ body: JSON.stringify({
+    type: 'message.ack',
+    chatId: 10,
+    clientMessageId: confirmed.clientMessageId,
+    message: confirmed,
+    duplicate: false,
+  }) } as IMessage));
   await waitFor(() => expect(result.current.isSuccess).toBe(true));
   expect(items()).toHaveLength(2);
   expect(items()[0]).toMatchObject({ id: 2, status: 'sent' });
@@ -67,7 +73,13 @@ it('retains failed messages through refetch, then retries with the same client I
   expect(items().some((m) => m.status === 'failed')).toBe(true);
   act(() => result.current.mutate(variables));
   await waitFor(() => expect(publish).toHaveBeenCalledTimes(2));
-  act(() => receive({ body: JSON.stringify(confirmed) } as IMessage));
+  act(() => receive({ body: JSON.stringify({
+    type: 'message.ack',
+    chatId: 10,
+    clientMessageId: confirmed.clientMessageId,
+    message: confirmed,
+    duplicate: true,
+  }) } as IMessage));
   await waitFor(() => expect(result.current.isSuccess).toBe(true));
   expect(items().filter((m) => m.clientMessageId === variables.clientMessageId)).toHaveLength(1);
 });
@@ -80,7 +92,13 @@ it('does not erase a newly edited draft when the previous send completes', async
   act(() => result.current.mutate({ ...variables, clientMessageId: id }));
   await waitFor(() => expect(publish).toHaveBeenCalled());
   useDraftStore.getState().edit(draft, 'Next message');
-  act(() => receive({ body: JSON.stringify({ ...confirmed, clientMessageId: id }) } as IMessage));
+  act(() => receive({ body: JSON.stringify({
+    type: 'message.ack',
+    chatId: 10,
+    clientMessageId: id,
+    message: { ...confirmed, clientMessageId: id },
+    duplicate: false,
+  }) } as IMessage));
   await waitFor(() => expect(result.current.isSuccess).toBe(true));
   expect(useDraftStore.getState().drafts[draft].content).toBe('Next message');
   useAuthStore.getState().clearSession();
@@ -95,6 +113,31 @@ it('clears the submitted draft even after its composer unmounts', async () => {
   act(() => result.current.mutate({ ...variables, clientMessageId: id }));
   await waitFor(() => expect(publish).toHaveBeenCalled());
   unmount();
-  act(() => receive({ body: JSON.stringify({ ...confirmed, clientMessageId: id }) } as IMessage));
+  act(() => receive({ body: JSON.stringify({
+    type: 'message.ack',
+    chatId: 10,
+    clientMessageId: id,
+    message: { ...confirmed, clientMessageId: id },
+    duplicate: false,
+  }) } as IMessage));
   await waitFor(() => expect(useDraftStore.getState().drafts[draft]).toBeUndefined());
+});
+
+it('marks the optimistic message as failed when the server rejects it', async () => {
+  const { result } = renderHook(() => useSendMessage(), { wrapper });
+  act(() => result.current.mutate(variables));
+  await waitFor(() => expect(publish).toHaveBeenCalled());
+
+  act(() => receive({ body: JSON.stringify({
+    type: 'message.rejected',
+    chatId: 10,
+    clientMessageId: variables.clientMessageId,
+    duplicate: false,
+    code: 2001,
+    error: 'Message rejected',
+  }) } as IMessage));
+
+  await waitFor(() => expect(result.current.isError).toBe(true));
+  expect(items().find((message) => message.clientMessageId === variables.clientMessageId)?.status)
+    .toBe('failed');
 });

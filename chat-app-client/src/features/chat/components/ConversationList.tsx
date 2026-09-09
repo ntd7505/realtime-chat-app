@@ -247,11 +247,21 @@ export const ConversationList = ({ activeChatId }: ConversationListProps) => {
                       <h2 className="text-sm font-semibold text-zinc-900 truncate">
                         {chat.otherUser.displayName}
                       </h2>
-                      {timeString && (
-                        <span className="text-[11px] text-zinc-400 shrink-0 font-normal">
-                          {timeString}
-                        </span>
-                      )}
+                      <div className="flex shrink-0 items-center gap-2">
+                        {chat.unreadCount > 0 && (
+                          <span
+                            className="inline-flex min-w-5 h-5 items-center justify-center rounded-full bg-zinc-900 px-1.5 text-[10px] font-bold text-white"
+                            aria-label={`${chat.unreadCount} unread messages`}
+                          >
+                            {chat.unreadCount > 99 ? '99+' : chat.unreadCount}
+                          </span>
+                        )}
+                        {timeString && (
+                          <span className="text-[11px] text-zinc-400 font-normal">
+                            {timeString}
+                          </span>
+                        )}
+                      </div>
                     </div>
                     <div className="flex items-center justify-between gap-2">
                       <p

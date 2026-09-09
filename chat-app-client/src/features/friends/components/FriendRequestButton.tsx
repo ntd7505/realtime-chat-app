@@ -2,6 +2,7 @@ import {
   useCancelFriendRequest,
   useFriends,
   useReceivedFriendRequests,
+  useSentFriendRequests,
   useSendFriendRequest,
 } from '../hooks/useFriendships';
 import { getApiErrorMessage } from '@/utils/error';
@@ -19,19 +20,21 @@ export function FriendRequestButton({ userId, compact = false }: FriendRequestBu
   const currentUserId = useAuthStore((state) => state.user?.id);
   const friends = useFriends();
   const receivedRequests = useReceivedFriendRequests();
+  const sentRequests = useSentFriendRequests();
   const blockedUsers = useBlockedUsers();
   const request = useSendFriendRequest();
   const cancel = useCancelFriendRequest();
 
   if (currentUserId === userId) return null;
 
-  if (friends.isError || receivedRequests.isError || blockedUsers.isError) {
+  if (friends.isError || receivedRequests.isError || sentRequests.isError || blockedUsers.isError) {
     return (
       <button
         type="button"
         onClick={() => void Promise.all([
           friends.refetch(),
           receivedRequests.refetch(),
+          sentRequests.refetch(),
           blockedUsers.refetch(),
         ])}
         className="min-h-[44px] px-2 text-xs font-semibold text-rose-700 hover:underline inline-flex items-center"
@@ -60,7 +63,9 @@ export function FriendRequestButton({ userId, compact = false }: FriendRequestBu
     );
   }
 
-  if (request.isSuccess) {
+  const requestWasSent = sentRequests.data?.some((user) => user.id === userId);
+
+  if (requestWasSent) {
     return (
       <div className="flex flex-col items-end gap-1">
         <button
@@ -93,7 +98,7 @@ export function FriendRequestButton({ userId, compact = false }: FriendRequestBu
       <button
         type="button"
         onClick={() => request.mutate(userId)}
-        disabled={request.isPending || friends.isLoading || receivedRequests.isLoading || blockedUsers.isLoading}
+        disabled={request.isPending || friends.isLoading || receivedRequests.isLoading || sentRequests.isLoading || blockedUsers.isLoading}
         className={cn(
           "inline-flex min-h-[44px] items-center justify-center gap-1.5 rounded-xl border border-zinc-200 bg-white px-3.5 py-2 text-xs font-semibold text-zinc-700 hover:bg-zinc-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-zinc-900 disabled:opacity-50 shadow-2xs transition-colors",
           compact && "px-3"

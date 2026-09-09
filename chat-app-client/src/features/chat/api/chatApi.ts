@@ -1,7 +1,13 @@
 import { apiClient } from '@/lib/http/apiClient';
 import type { ApiResponse } from '@/types/api.types';
 import type { CursorPage } from '@/types/pagination.types';
-import type { Chat, Message, SendMessageRequest } from '../chat.types';
+import type {
+  Chat,
+  ChatReadResponse,
+  Message,
+  MessageSyncResponse,
+  SendMessageRequest,
+} from '../chat.types';
 
 interface CursorParams {
   cursor?: string | null;
@@ -58,6 +64,32 @@ export const chatApi = {
     const response = await apiClient.get<ApiResponse<CursorPage<Message>>>(
       `/chats/${chatId}/messages`,
       { params: { cursor: cursor || undefined, limit } }
+    );
+    return response.data.data;
+  },
+
+  syncMessages: async (
+    chatId: number,
+    afterMessageId: number,
+    limit = 100
+  ): Promise<MessageSyncResponse> => {
+    if (!Number.isInteger(afterMessageId) || afterMessageId <= 0) {
+      throw new RangeError('afterMessageId must be a positive integer');
+    }
+    if (!Number.isInteger(limit) || limit < 1 || limit > 100) {
+      throw new RangeError('limit must be an integer between 1 and 100');
+    }
+    const response = await apiClient.get<ApiResponse<MessageSyncResponse>>(
+      `/chats/${chatId}/messages/sync`,
+      { params: { afterMessageId, limit } }
+    );
+    return response.data.data;
+  },
+
+  markAsRead: async (chatId: number, messageId: number): Promise<ChatReadResponse> => {
+    const response = await apiClient.patch<ApiResponse<ChatReadResponse>>(
+      `/chats/${chatId}/read`,
+      { messageId }
     );
     return response.data.data;
   },

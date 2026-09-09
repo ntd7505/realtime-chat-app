@@ -3,7 +3,7 @@ import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { MessageTimeline } from './MessageTimeline';
 import { useAuthStore } from '@/features/auth/authStore';
 import { useStomp } from '@/lib/websocket/stompContext';
-import { useMessages, useSendMessage } from '@/features/chat/hooks/useChats';
+import { useMarkChatRead, useMessages, useSendMessage } from '@/features/chat/hooks/useChats';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 
 // Mock dependencies
@@ -17,6 +17,7 @@ vi.mock('@/lib/websocket/stompContext', () => ({
 
 vi.mock('@/features/chat/hooks/useChats', () => ({
   useMessages: vi.fn(),
+  useMarkChatRead: vi.fn(),
   useSendMessage: vi.fn(),
   chatKeys: {
     messages: vi.fn().mockReturnValue(['messages']),
@@ -43,6 +44,7 @@ describe('MessageTimeline Auto-Scroll Regression', () => {
   let queryClient: QueryClient;
   const mockUser = { id: 1, displayName: 'User', avatarUrl: '' };
   const mockSubscribe = vi.fn();
+  const mockMarkAsRead = vi.fn();
   
   beforeEach(() => {
     queryClient = new QueryClient();
@@ -53,6 +55,7 @@ describe('MessageTimeline Auto-Scroll Regression', () => {
     (useAuthStore as any).mockReturnValue(mockUser);
     (useStomp as any).mockReturnValue({ subscribe: mockSubscribe });
     (useSendMessage as any).mockReturnValue({ mutate: vi.fn() });
+    (useMarkChatRead as any).mockReturnValue({ mutate: mockMarkAsRead });
     
     // Reset scroll values
     Object.defineProperty(HTMLElement.prototype, 'scrollHeight', { configurable: true, value: 500 });
@@ -258,5 +261,19 @@ describe('MessageTimeline Auto-Scroll Regression', () => {
     );
     
     expect(HTMLElement.prototype.scrollTo).toHaveBeenCalledWith({ top: 500, behavior: 'auto' });
+  });
+
+  it('marks the latest incoming message as read', () => {
+    const incoming = {
+      ...createMockMessage(7, 'Incoming'),
+      sender: { id: 2, displayName: 'Other user', avatarUrl: '' },
+    };
+
+    renderComponent({ pages: [{ items: [incoming] }] });
+
+    expect(mockMarkAsRead).toHaveBeenCalledWith(
+      { chatId: 1, messageId: 7 },
+      expect.objectContaining({ onError: expect.any(Function) })
+    );
   });
 });

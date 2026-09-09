@@ -1,7 +1,7 @@
 import { useInfiniteQuery, useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useAuthStore } from '@/features/auth/authStore';
 import { useStomp } from '@/lib/websocket/stompContext';
-import type { SendMessageRequest, Message } from '../chat.types';
+import type { SendMessageRequest, Message, MessageDeliveryEvent } from '../chat.types';
 import { chatApi, validateSendMessageRequest } from '../api/chatApi';
 import { chatKeys } from '../chat.keys';
 import { upsertMessage, updateMessage, type MessageHistory } from '../messageCache';
@@ -69,6 +69,25 @@ export const useCreateDirectChat = () => {
   });
 };
 
+export const useMarkChatRead = () => {
+  const queryClient = useQueryClient();
+  const userId = useAuthStore((state) => state.user?.id ?? 0);
+
+  return useMutation({
+    mutationFn: ({ chatId, messageId }: { chatId: number; messageId: number }) =>
+      chatApi.markAsRead(chatId, messageId),
+    onSuccess: (read) => {
+      void Promise.all([
+        queryClient.invalidateQueries({ queryKey: chatKeys.lists(userId) }),
+        queryClient.invalidateQueries({
+          queryKey: chatKeys.detail(userId, read.chatId),
+          exact: true,
+        }),
+      ]);
+    },
+  });
+};
+
 interface SendMessageVariables extends SendMessageRequest {
   chatId: number;
 }
@@ -87,7 +106,7 @@ export const useSendMessage = () => {
       if (status !== 'connected') throw new Error('Connect before sending. Your draft is saved.');
 
       return new Promise<Message>((resolve, reject) => {
-        const topic = `/topic/chats/${chatId}`;
+        const deliveryQueue = '/user/queue/message-events';
         let unsubscribe: () => void = () => {};
 
         const timeoutId = window.setTimeout(async () => {
@@ -115,22 +134,30 @@ export const useSendMessage = () => {
           }
         }, 10_000);
 
-        unsubscribe = subscribe(topic, (frame) => {
-          let received: Message;
+        unsubscribe = subscribe(deliveryQueue, (frame) => {
+          let event: MessageDeliveryEvent;
 
           try {
-            received = JSON.parse(frame.body) as Message;
+            event = JSON.parse(frame.body) as MessageDeliveryEvent;
           } catch {
             return;
           }
 
-          if (received.clientMessageId !== request.clientMessageId || !received.id || !received.sender) {
+          if (event.clientMessageId !== request.clientMessageId || event.chatId !== chatId) {
             return;
           }
 
           window.clearTimeout(timeoutId);
           unsubscribe();
-          resolve(received);
+          if (event.type === 'message.rejected') {
+            reject(new Error(event.error || 'The server rejected the message'));
+            return;
+          }
+          if (!event.message?.id || !event.message.sender) {
+            reject(new Error('The server returned an invalid message acknowledgement'));
+            return;
+          }
+          resolve(event.message);
         });
 
         try {

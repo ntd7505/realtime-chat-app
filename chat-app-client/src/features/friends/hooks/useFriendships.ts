@@ -9,6 +9,8 @@ export const friendshipKeys = {
   friends: (userId: number) => [...friendshipKeys.all(userId), 'friends'] as const,
   receivedRequests: (userId: number) =>
     [...friendshipKeys.all(userId), 'requests', 'received'] as const,
+  sentRequests: (userId: number) =>
+    [...friendshipKeys.all(userId), 'requests', 'sent'] as const,
 };
 
 const useFriendshipMutation = <TData, TVariables>(
@@ -41,6 +43,17 @@ export const useReceivedFriendRequests = () => {
   return useQuery({
     queryKey: friendshipKeys.receivedRequests(userId),
     queryFn: friendshipApi.getReceivedRequests,
+    enabled: isAuthenticated,
+  });
+};
+
+export const useSentFriendRequests = () => {
+  const isAuthenticated = useAuthStore((state) => state.status === 'authenticated');
+  const userId = useAuthStore((state) => state.user?.id ?? 0);
+
+  return useQuery({
+    queryKey: friendshipKeys.sentRequests(userId),
+    queryFn: friendshipApi.getSentRequests,
     enabled: isAuthenticated,
   });
 };

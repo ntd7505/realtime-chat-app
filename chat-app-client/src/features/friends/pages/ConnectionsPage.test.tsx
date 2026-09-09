@@ -8,6 +8,7 @@ import {
   useCancelFriendRequest,
   useFriends,
   useReceivedFriendRequests,
+  useSentFriendRequests,
   useUnfriend,
 } from '../hooks/useFriendships';
 import { useBlockedUsers, useUnblockUser } from '@/features/blocks/hooks/useUserBlocks';
@@ -16,6 +17,7 @@ import { useStartDirectChat } from '@/features/chat/hooks/useStartDirectChat';
 vi.mock('../hooks/useFriendships', () => ({
   useFriends: vi.fn(),
   useReceivedFriendRequests: vi.fn(),
+  useSentFriendRequests: vi.fn(),
   useAcceptFriendRequest: vi.fn(),
   useCancelFriendRequest: vi.fn(),
   useUnfriend: vi.fn(),
@@ -33,6 +35,7 @@ vi.mock('@/features/chat/hooks/useStartDirectChat', () => ({
 const alice = { id: 2, displayName: 'Alice Nguyen', avatarUrl: null };
 const bob = { id: 3, displayName: 'Bob Tran', avatarUrl: null };
 const charlie = { id: 4, displayName: 'Charlie Le', avatarUrl: null };
+const dana = { id: 5, displayName: 'Dana Pham', avatarUrl: null };
 
 describe('ConnectionsPage', () => {
   const accept = vi.fn();
@@ -51,6 +54,12 @@ describe('ConnectionsPage', () => {
     } as never);
     vi.mocked(useReceivedFriendRequests).mockReturnValue({
       data: [bob],
+      isLoading: false,
+      isError: false,
+      refetch: vi.fn(),
+    } as never);
+    vi.mocked(useSentFriendRequests).mockReturnValue({
+      data: [dana],
       isLoading: false,
       isError: false,
       refetch: vi.fn(),
@@ -109,6 +118,9 @@ describe('ConnectionsPage', () => {
     await user.click(screen.getByRole('tab', { name: /requests/i }));
     expect(screen.getByText('Bob Tran')).toBeTruthy();
 
+    await user.click(screen.getByRole('tab', { name: /sent/i }));
+    expect(screen.getByText('Dana Pham')).toBeTruthy();
+
     await user.click(screen.getByRole('tab', { name: /blocked/i }));
     expect(screen.getByText('Charlie Le')).toBeTruthy();
   });
@@ -120,7 +132,7 @@ describe('ConnectionsPage', () => {
     await user.keyboard('{ArrowRight}');
     expect(screen.getByRole('tab', { name: /requests/i })).toHaveFocus();
     await user.keyboard('{ArrowRight}');
-    expect(screen.getByRole('tab', { name: /blocked/i })).toHaveFocus();
+    expect(screen.getByRole('tab', { name: /sent/i })).toHaveFocus();
     await user.keyboard('{Home}');
     expect(screen.getByRole('tab', { name: /friends/i })).toHaveFocus();
     await user.keyboard('{End}');
@@ -141,6 +153,10 @@ describe('ConnectionsPage', () => {
     await user.click(screen.getByRole('button', { name: /decline bob tran/i }));
     expect(accept).toHaveBeenCalledWith(bob.id);
     expect(decline).toHaveBeenCalledWith(bob.id);
+
+    await user.click(screen.getByRole('tab', { name: /sent/i }));
+    await user.click(screen.getByRole('button', { name: /cancel request to dana pham/i }));
+    expect(decline).toHaveBeenCalledWith(dana.id);
 
     await user.click(screen.getByRole('tab', { name: /blocked/i }));
     await user.click(screen.getByRole('button', { name: /unblock charlie le/i }));

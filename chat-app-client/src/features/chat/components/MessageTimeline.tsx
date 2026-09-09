@@ -1,8 +1,10 @@
 import { useEffect, useRef, useState, useLayoutEffect, useMemo } from 'react';
-import { useQueryClient } from '@tanstack/react-query';
 import { useAuthStore } from '@/features/auth/authStore';
-import { useStomp } from '@/lib/websocket/stompContext';
-import { useMessages, chatKeys, useSendMessage } from '@/features/chat/hooks/useChats';
+import {
+  useMessages,
+  useMarkChatRead,
+  useSendMessage,
+} from '@/features/chat/hooks/useChats';
 import { WarningCircle, ChatCircleDots, Clock, ArrowCounterClockwise, ArrowDown } from '@phosphor-icons/react';
 import { cn } from '@/lib/utils';
 import type { Message } from '@/features/chat/chat.types';
@@ -37,14 +39,17 @@ function isSameDay(d1: string, d2: string): boolean {
 
 export const MessageTimeline = ({ chatId }: MessageTimelineProps) => {
   const currentUser = useAuthStore((state) => state.user);
-  const { subscribe } = useStomp();
-  const queryClient = useQueryClient();
   const { data, isLoading, isError, hasNextPage, fetchNextPage, isFetchingNextPage, refetch } = useMessages(chatId);
   const { mutate: sendMessage } = useSendMessage();
+  const { mutate: markAsRead } = useMarkChatRead();
   const scrollContainerRef = useRef<HTMLDivElement>(null);
   const bottomRef = useRef<HTMLDivElement>(null);
 
   const [hasNewMessageIndicator, setHasNewMessageIndicator] = useState(false);
+  const [isNearBottom, setIsNearBottom] = useState(true);
+  const [isDocumentVisible, setIsDocumentVisible] = useState(
+    () => document.visibilityState !== 'hidden'
+  );
 
   // Ref 1: Chỉ auto-scroll lần đầu
   const hasInitialScrolledRef = useRef(false);
@@ -54,6 +59,7 @@ export const MessageTimeline = ({ chatId }: MessageTimelineProps) => {
   const prependSnapshotRef = useRef<{ scrollTop: number; scrollHeight: number } | null>(null);
   // Ref 4: Phân biệt message mới với render thông thường
   const previousLastMessageIdRef = useRef<string | number | null>(null);
+  const lastMarkedMessageRef = useRef<number | null>(null);
 
 
 
@@ -62,30 +68,45 @@ export const MessageTimeline = ({ chatId }: MessageTimelineProps) => {
     const threshold = 150;
     const isNear = target.scrollHeight - target.scrollTop - target.clientHeight < threshold;
     wasNearBottomRef.current = isNear;
+    setIsNearBottom((current) => current === isNear ? current : isNear);
 
     if (isNear && hasNewMessageIndicator) {
       setHasNewMessageIndicator(false);
     }
   };
 
-  useEffect(() => {
-    if (!currentUser || chatId <= 0) return;
-
-    return subscribe(`/topic/chats/${chatId}`, () => {
-      void Promise.all([
-        queryClient.invalidateQueries({ queryKey: chatKeys.messages(currentUser.id, chatId) }),
-        queryClient.invalidateQueries({ queryKey: chatKeys.lists(currentUser.id) }),
-        queryClient.invalidateQueries({
-          queryKey: chatKeys.detail(currentUser.id, chatId),
-          exact: true,
-        }),
-      ]);
-    });
-  }, [chatId, currentUser, queryClient, subscribe]);
-
   const messages = useMemo(() => {
     return data?.pages.flatMap((page) => page.items).reverse() ?? [];
   }, [data]);
+
+  useEffect(() => {
+    lastMarkedMessageRef.current = null;
+    setIsNearBottom(true);
+  }, [chatId]);
+
+  useEffect(() => {
+    const onVisibilityChange = () => setIsDocumentVisible(document.visibilityState !== 'hidden');
+    document.addEventListener('visibilitychange', onVisibilityChange);
+    return () => document.removeEventListener('visibilitychange', onVisibilityChange);
+  }, []);
+
+  useEffect(() => {
+    const latestMessage = messages.findLast((message) => message.id > 0);
+    if (
+      !latestMessage ||
+      !isNearBottom ||
+      !isDocumentVisible ||
+      lastMarkedMessageRef.current === latestMessage.id
+    ) {
+      return;
+    }
+
+    lastMarkedMessageRef.current = latestMessage.id;
+    markAsRead(
+      { chatId, messageId: latestMessage.id },
+      { onError: () => { lastMarkedMessageRef.current = null; } }
+    );
+  }, [chatId, isDocumentVisible, isNearBottom, markAsRead, messages]);
 
   const handleFetchNextPage = async () => {
     if (scrollContainerRef.current) {

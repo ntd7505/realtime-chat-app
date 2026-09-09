@@ -7,6 +7,7 @@ import {
   useCancelFriendRequest,
   useFriends,
   useReceivedFriendRequests,
+  useSentFriendRequests,
   useSendFriendRequest,
 } from '../hooks/useFriendships';
 import { useBlockedUsers, useBlockUser, useUnblockUser } from '@/features/blocks/hooks/useUserBlocks';
@@ -16,6 +17,7 @@ vi.mock('../hooks/useFriendships', () => ({
   useCancelFriendRequest: vi.fn(),
   useFriends: vi.fn(),
   useReceivedFriendRequests: vi.fn(),
+  useSentFriendRequests: vi.fn(),
 }));
 
 vi.mock('@/features/blocks/hooks/useUserBlocks', () => ({
@@ -55,6 +57,11 @@ describe('relationship action buttons', () => {
       isLoading: false,
       isError: false,
     } as never);
+    vi.mocked(useSentFriendRequests).mockReturnValue({
+      data: [],
+      isLoading: false,
+      isError: false,
+    } as never);
     vi.mocked(useBlockedUsers).mockReturnValue({
       data: [],
       isLoading: false,
@@ -81,12 +88,10 @@ describe('relationship action buttons', () => {
   });
 
   it('allows a newly sent friend request to be cancelled', async () => {
-    vi.mocked(useSendFriendRequest).mockReturnValue({
-      mutate: sendRequest,
-      reset: resetRequest,
-      isPending: false,
+    vi.mocked(useSentFriendRequests).mockReturnValue({
+      data: [{ id: 9, displayName: 'Requested user', avatarUrl: null }],
+      isLoading: false,
       isError: false,
-      isSuccess: true,
     } as never);
     const user = userEvent.setup();
     render(<FriendRequestButton userId={9} />);

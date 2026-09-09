@@ -13,12 +13,13 @@ import {
   useCancelFriendRequest,
   useFriends,
   useReceivedFriendRequests,
+  useSentFriendRequests,
   useUnfriend,
 } from '../hooks/useFriendships';
 import { useBlockedUsers, useUnblockUser } from '@/features/blocks/hooks/useUserBlocks';
 import { cn } from '@/lib/utils';
 
-type ConnectionTab = 'friends' | 'requests' | 'blocked';
+type ConnectionTab = 'friends' | 'requests' | 'sent' | 'blocked';
 
 interface PersonRowProps {
   user: UserSummary;
@@ -77,6 +78,7 @@ export function ConnectionsPage() {
   const tabRefs = useRef<(HTMLButtonElement | null)[]>([]);
   const friends = useFriends();
   const requests = useReceivedFriendRequests();
+  const sentRequests = useSentFriendRequests();
   const blocked = useBlockedUsers();
   const accept = useAcceptFriendRequest();
   const decline = useCancelFriendRequest();
@@ -86,6 +88,7 @@ export function ConnectionsPage() {
   const tabs: Array<{ id: ConnectionTab; label: string; count: number }> = [
     { id: 'friends', label: 'Friends', count: friends.data?.length ?? 0 },
     { id: 'requests', label: 'Requests', count: requests.data?.length ?? 0 },
+    { id: 'sent', label: 'Sent', count: sentRequests.data?.length ?? 0 },
     { id: 'blocked', label: 'Blocked', count: blocked.data?.length ?? 0 },
   ];
 
@@ -243,6 +246,57 @@ export function ConnectionsPage() {
     ));
   };
 
+  const renderSentRequests = () => {
+    if (sentRequests.isLoading) {
+      return <LoadingSpinner fullCenter label="Loading sent requests..." />;
+    }
+    if (sentRequests.isError) {
+      return (
+        <ErrorState
+          message="Could not load sent friend requests."
+          onRetry={() => sentRequests.refetch()}
+        />
+      );
+    }
+    if (!sentRequests.data?.length) {
+      return (
+        <EmptyState
+          icon={<UserPlus size={26} weight="regular" />}
+          title="No sent requests"
+          description="Friend requests you send will appear here until they are accepted or cancelled."
+        />
+      );
+    }
+
+    return sentRequests.data.map((recipient) => (
+      <PersonRow key={recipient.id} user={recipient}>
+        <button
+          type="button"
+          aria-label={`Cancel request to ${recipient.displayName}`}
+          onClick={() => decline.mutate(recipient.id)}
+          disabled={decline.isPending}
+          className="inline-flex min-h-[44px] items-center justify-center gap-1.5 rounded-xl border border-zinc-200 bg-white px-3.5 py-2 text-xs font-semibold text-zinc-700 hover:bg-zinc-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-zinc-900 disabled:opacity-50 shadow-2xs transition-colors"
+        >
+          {decline.isPending && decline.variables === recipient.id ? (
+            <CircleNotch size={14} weight="bold" className="animate-spin" aria-hidden="true" />
+          ) : (
+            <X size={15} weight="bold" aria-hidden="true" />
+          )}
+          <span>
+            {decline.isPending && decline.variables === recipient.id
+              ? 'Cancelling...'
+              : 'Cancel request'}
+          </span>
+        </button>
+        {decline.isError && decline.variables === recipient.id && (
+          <span className="w-full text-xs text-rose-600" role="alert">
+            {getApiErrorMessage(decline.error, 'Could not cancel this request.')}
+          </span>
+        )}
+      </PersonRow>
+    ));
+  };
+
   return (
     <main className="flex-1 overflow-y-auto w-full p-4 sm:p-6 lg:p-8" aria-label="Connections">
       <div className="max-w-3xl mx-auto flex flex-col gap-6">
@@ -296,6 +350,7 @@ export function ConnectionsPage() {
         <section id={`connections-panel-${activeTab}`} aria-labelledby={`connections-tab-${activeTab}`} tabIndex={0} className="flex flex-col gap-3 min-h-64" role="tabpanel">
           {activeTab === 'friends' && renderFriends()}
           {activeTab === 'requests' && renderRequests()}
+          {activeTab === 'sent' && renderSentRequests()}
           {activeTab === 'blocked' && renderBlocked()}
         </section>
       </div>
