@@ -44,12 +44,50 @@ class WebSocketAuthChannelInterceptorTest {
         .hasMessage("Invalid subscription destination");
   }
 
+  @Test
+  void shouldAllowPresenceHeartbeatDestination() {
+    assertThatCode(() -> interceptor.preSend(send("/app/presence/heartbeat"), null))
+        .doesNotThrowAnyException();
+  }
+
+  @Test
+  void shouldRejectDestinationThatOnlyStartsWithPresenceHeartbeat() {
+    assertThatThrownBy(
+            () -> interceptor.preSend(send("/app/presence/heartbeat/another-user"), null))
+        .isInstanceOf(MessageDeliveryException.class)
+        .hasMessage("Invalid send destination");
+  }
+
+  @Test
+  void shouldRejectPresenceHeartbeatWithoutAuthenticatedPrincipal() {
+    assertThatThrownBy(
+            () -> interceptor.preSend(unauthenticatedSend("/app/presence/heartbeat"), null))
+        .isInstanceOf(MessageDeliveryException.class)
+        .hasMessage("Invalid WebSocket principal");
+  }
+
   private Message<byte[]> subscription(String destination) {
     User currentUser = user(1L, "user@example.com", "User");
     StompHeaderAccessor accessor = StompHeaderAccessor.create(StompCommand.SUBSCRIBE);
     accessor.setSessionId("session-1");
     accessor.setDestination(destination);
     accessor.setUser(new WebSocketPrincipal(currentUser));
+    return MessageBuilder.createMessage(new byte[0], accessor.getMessageHeaders());
+  }
+
+  private Message<byte[]> send(String destination) {
+    User currentUser = user(1L, "user@example.com", "User");
+    StompHeaderAccessor accessor = StompHeaderAccessor.create(StompCommand.SEND);
+    accessor.setSessionId("session-1");
+    accessor.setDestination(destination);
+    accessor.setUser(new WebSocketPrincipal(currentUser));
+    return MessageBuilder.createMessage(new byte[0], accessor.getMessageHeaders());
+  }
+
+  private Message<byte[]> unauthenticatedSend(String destination) {
+    StompHeaderAccessor accessor = StompHeaderAccessor.create(StompCommand.SEND);
+    accessor.setSessionId("session-1");
+    accessor.setDestination(destination);
     return MessageBuilder.createMessage(new byte[0], accessor.getMessageHeaders());
   }
 }

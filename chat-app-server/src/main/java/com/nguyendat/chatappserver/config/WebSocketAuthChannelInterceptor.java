@@ -30,6 +30,7 @@ public class WebSocketAuthChannelInterceptor implements ChannelInterceptor {
   private static final Pattern CHAT_SEND_PATTERN = Pattern.compile("^/app/chats/(\\d+)/messages$");
   private static final String USER_EVENTS_DESTINATION = "/user/queue/events";
   private static final String USER_MESSAGE_EVENTS_DESTINATION = "/user/queue/message-events";
+  private static final String PRESENCE_HEARTBEAT_DESTINATION = "/app/presence/heartbeat";
 
   private final JwtService jwtService;
   private final UserRepository userRepository;
@@ -94,10 +95,15 @@ public class WebSocketAuthChannelInterceptor implements ChannelInterceptor {
 
   private void authorizeSend(StompHeaderAccessor accessor) {
     getCurrentUser(accessor);
+
     String destination = accessor.getDestination();
 
     if (destination == null) {
       throw new MessageDeliveryException("Destination is missing");
+    }
+
+    if (PRESENCE_HEARTBEAT_DESTINATION.equals(destination)) {
+      return;
     }
 
     Matcher matcher = CHAT_SEND_PATTERN.matcher(destination);
