@@ -1,9 +1,9 @@
-import { act, render } from '@testing-library/react';
+import { act, cleanup, render } from '@testing-library/react';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import type { IMessage } from '@stomp/stompjs';
-import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi, type Mock } from 'vitest';
 import { useAuthStore } from '@/features/auth/authStore';
-import { useStomp } from './stompContext';
+import { useStomp, type StompConnection } from './stompContext';
 import { RealtimeSync } from './RealtimeSync';
 
 vi.mock('./stompContext', async (importOriginal) => {
@@ -15,10 +15,12 @@ describe('RealtimeSync', () => {
   let client: QueryClient;
   let receive: (frame: IMessage) => void;
   let status: 'disconnected' | 'connected';
+  let publish: Mock<StompConnection['publish']>;
 
   beforeEach(() => {
     client = new QueryClient();
     status = 'disconnected';
+    publish = vi.fn<StompConnection['publish']>();
     useAuthStore.getState().setSession('token', {
       id: 1,
       email: 'user@example.test',
@@ -28,7 +30,7 @@ describe('RealtimeSync', () => {
     });
     vi.mocked(useStomp).mockImplementation(() => ({
       status,
-      publish: vi.fn(),
+      publish,
       subscribe: (_destination, handler) => {
         receive = handler;
         return vi.fn();
@@ -37,6 +39,8 @@ describe('RealtimeSync', () => {
   });
 
   afterEach(() => {
+    cleanup();
+    vi.useRealTimers();
     client.clear();
     useAuthStore.getState().clearSession();
   });
@@ -95,5 +99,82 @@ describe('RealtimeSync', () => {
 
     expect(invalidate).toHaveBeenCalledWith({ queryKey: ['chats', 1] });
     expect(invalidate).toHaveBeenCalledWith({ queryKey: ['friendships', 1] });
+  });
+
+  it('keeps presence alive only while realtime is connected', () => {
+    vi.useFakeTimers();
+    status = 'connected';
+    const view = renderSync();
+
+    expect(publish).toHaveBeenCalledOnce();
+    expect(publish).toHaveBeenLastCalledWith('/app/presence/heartbeat', '');
+
+    act(() => vi.advanceTimersByTime(30_000));
+    expect(publish).toHaveBeenCalledTimes(2);
+
+    status = 'disconnected';
+    view.rerender(
+      <QueryClientProvider client={client}>
+        <RealtimeSync />
+      </QueryClientProvider>
+    );
+    act(() => vi.advanceTimersByTime(60_000));
+
+    expect(publish).toHaveBeenCalledTimes(2);
+
+    status = 'connected';
+    view.rerender(
+      <QueryClientProvider client={client}>
+        <RealtimeSync />
+      </QueryClientProvider>
+    );
+    expect(publish).toHaveBeenCalledTimes(3);
+    expect(publish).toHaveBeenLastCalledWith('/app/presence/heartbeat', '');
+  });
+
+  it('does not keep presence alive while realtime is disconnected', () => {
+    vi.useFakeTimers();
+    renderSync();
+
+    act(() => vi.advanceTimersByTime(60_000));
+
+    expect(publish).not.toHaveBeenCalled();
+  });
+
+  it('stops keeping presence alive after logout', () => {
+    vi.useFakeTimers();
+    status = 'connected';
+    renderSync();
+    expect(publish).toHaveBeenCalledOnce();
+
+    act(() => useAuthStore.getState().clearSession());
+    act(() => vi.advanceTimersByTime(60_000));
+
+    expect(publish).toHaveBeenCalledOnce();
+  });
+
+  it('stops keeping presence alive after unmount', () => {
+    vi.useFakeTimers();
+    status = 'connected';
+    const view = renderSync();
+    expect(publish).toHaveBeenCalledOnce();
+
+    view.unmount();
+    act(() => vi.advanceTimersByTime(60_000));
+
+    expect(publish).toHaveBeenCalledOnce();
+  });
+
+  it('tolerates a heartbeat racing with a socket close', () => {
+    vi.useFakeTimers();
+    status = 'connected';
+    publish.mockImplementationOnce(() => {
+      throw new Error('Realtime connection is not ready');
+    });
+
+    expect(() => renderSync()).not.toThrow();
+    act(() => vi.advanceTimersByTime(30_000));
+
+    expect(publish).toHaveBeenCalledTimes(2);
   });
 });

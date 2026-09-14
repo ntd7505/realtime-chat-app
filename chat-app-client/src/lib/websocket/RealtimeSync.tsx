@@ -6,11 +6,13 @@ import type { RealtimeEvent } from '@/features/chat/chat.types';
 import { useStomp, type ConnectionStatus } from './stompContext';
 
 const MAX_SEEN_EVENTS = 200;
+const PRESENCE_HEARTBEAT_DESTINATION = '/app/presence/heartbeat';
+const PRESENCE_HEARTBEAT_INTERVAL_MS = 30_000;
 
 export function RealtimeSync() {
   const queryClient = useQueryClient();
   const userId = useAuthStore((state) => state.user?.id ?? 0);
-  const { status, subscribe } = useStomp();
+  const { publish, status, subscribe } = useStomp();
   const previousStatus = useRef<ConnectionStatus>('disconnected');
   const previousUserId = useRef(userId);
   const hasConnected = useRef(false);
@@ -51,6 +53,22 @@ export function RealtimeSync() {
       }
     });
   }, [queryClient, subscribe, userId]);
+
+  useEffect(() => {
+    if (!userId || status !== 'connected') return;
+
+    const sendHeartbeat = () => {
+      try {
+        publish(PRESENCE_HEARTBEAT_DESTINATION, '');
+      } catch {
+        // Connection state can lag briefly behind a socket close. Reconnect will retry immediately.
+      }
+    };
+    sendHeartbeat();
+
+    const intervalId = window.setInterval(sendHeartbeat, PRESENCE_HEARTBEAT_INTERVAL_MS);
+    return () => window.clearInterval(intervalId);
+  }, [publish, status, userId]);
 
   useEffect(() => {
     if (previousUserId.current !== userId) {
