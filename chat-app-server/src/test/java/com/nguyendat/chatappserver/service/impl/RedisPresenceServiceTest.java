@@ -5,6 +5,9 @@ import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 import java.time.Duration;
+import java.util.Arrays;
+import java.util.List;
+import java.util.Map;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -58,5 +61,16 @@ class RedisPresenceServiceTest {
   void shouldRejectNullUserId() {
     org.junit.jupiter.api.Assertions.assertThrows(
         NullPointerException.class, () -> presenceService.touch(null));
+  }
+
+  @Test
+  void getStatusesShouldReturnOnlineStateForEachDistinctUser() {
+    when(redisTemplate.opsForValue()).thenReturn(valueOperations);
+    when(valueOperations.multiGet(List.of("chat-app:presence:user:2", "chat-app:presence:user:3")))
+        .thenReturn(Arrays.asList("1", null));
+
+    Map<Long, Boolean> result = presenceService.getStatuses(List.of(2L, 3L, 2L));
+
+    assertThat(result).containsExactly(Map.entry(2L, true), Map.entry(3L, false));
   }
 }

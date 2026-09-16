@@ -9,12 +9,9 @@ import lombok.Setter;
 @Setter
 public class CompleteAvatarUploadRequest {
 
-    @NotBlank
-    private String publicId;
+  @NotBlank private String publicId;
 
-    @NotNull
-    private Long version;
+  @NotNull private Long version;
 
-    @NotBlank
-    private String signature;
+  @NotBlank private String signature;
 }

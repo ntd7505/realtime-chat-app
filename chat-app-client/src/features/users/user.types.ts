@@ -7,3 +7,8 @@ export interface User {
 }
 
 export type UserSummary = Pick<User, 'id' | 'displayName' | 'avatarUrl'>;
+
+export interface UserPresence {
+  userId: number;
+  online: boolean;
+}

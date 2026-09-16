@@ -1,5 +1,5 @@
 import { apiClient } from '@/lib/http/apiClient';
-import type { User } from '../user.types';
+import type { User, UserPresence } from '../user.types';
 import type { ApiResponse } from '@/types/api.types';
 import type {
   AvatarUploadSignature,
@@ -22,6 +22,29 @@ export const userApi = {
       params: { keyword }
     });
     return response.data.data;
+  },
+
+  getPresence: async (userIds: number[]): Promise<UserPresence[]> => {
+    const uniqueUserIds = [...new Set(userIds)].filter(
+      (userId) => Number.isInteger(userId) && userId > 0
+    );
+    if (uniqueUserIds.length === 0) return [];
+
+    const batches = Array.from(
+      { length: Math.ceil(uniqueUserIds.length / 100) },
+      (_, index) => uniqueUserIds.slice(index * 100, (index + 1) * 100)
+    );
+    const responses = await Promise.all(
+      batches.map((batch) => {
+        const params = new URLSearchParams();
+        batch.forEach((userId) => params.append('userIds', String(userId)));
+        return apiClient.get<ApiResponse<UserPresence[]>>('/users/presence', {
+          params,
+        });
+      })
+    );
+
+    return responses.flatMap((response) => response.data.data);
   },
 
 

@@ -6,11 +6,11 @@ import lombok.Getter;
 @Getter
 @Builder
 public class AvatarUploadSignatureResponse {
-    private String cloudName;
-    private String apiKey;
-    private long timestamp;
-    private String signature;
-    private String publicId;
-    private boolean overwrite;
-    private boolean invalidate;
+  private String cloudName;
+  private String apiKey;
+  private long timestamp;
+  private String signature;
+  private String publicId;
+  private boolean overwrite;
+  private boolean invalidate;
 }

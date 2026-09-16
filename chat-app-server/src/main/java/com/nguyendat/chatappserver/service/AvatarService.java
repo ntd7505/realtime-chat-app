@@ -7,9 +7,7 @@ import com.nguyendat.chatappserver.model.User;
 
 public interface AvatarService {
 
-    AvatarUploadSignatureResponse createUploadSignature(User currentUser);
+  AvatarUploadSignatureResponse createUploadSignature(User currentUser);
 
-    UserResponse completeUpload(
-            User currentUser,
-            CompleteAvatarUploadRequest request);
+  UserResponse completeUpload(User currentUser, CompleteAvatarUploadRequest request);
 }

@@ -5,6 +5,7 @@ import { useChats } from '@/features/chat/hooks/useChats';
 import { cn } from '@/lib/utils';
 import type { Chat } from '@/features/chat/chat.types';
 import { Avatar } from '@/components/ui/Avatar';
+import { useUserPresence } from '@/features/users/hooks/useUserPresence';
 
 interface ConversationListProps {
   activeChatId: number | null;
@@ -49,6 +50,8 @@ export const ConversationList = ({ activeChatId }: ConversationListProps) => {
   };
 
   const chats = data?.pages.flatMap((page) => page.items) ?? [];
+  const { data: presence } = useUserPresence(chats.map((chat) => chat.otherUser.id));
+  const onlineByUserId = new Map(presence?.map((item) => [item.userId, item.online]));
   const filteredChats = chats.filter((chat: Chat) => {
     if (!searchQuery.trim()) return true;
     const query = searchQuery.toLowerCase();
@@ -240,6 +243,7 @@ export const ConversationList = ({ activeChatId }: ConversationListProps) => {
                   <Avatar
                     name={chat.otherUser.displayName}
                     url={chat.otherUser.avatarUrl}
+                    isOnline={onlineByUserId.get(chat.otherUser.id)}
                     className="w-11 h-11 shrink-0 ml-1"
                   />
                   <div className="flex-1 min-w-0 flex flex-col justify-center gap-1 overflow-hidden">

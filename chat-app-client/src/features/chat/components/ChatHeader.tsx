@@ -2,6 +2,8 @@ import { CaretLeft, User } from '@phosphor-icons/react';
 import { useSearchParams, Link } from 'react-router-dom';
 import { useChat } from '@/features/chat/hooks/useChats';
 import { Avatar } from '@/components/ui/Avatar';
+import { useUserPresence } from '@/features/users/hooks/useUserPresence';
+import { cn } from '@/lib/utils';
 
 interface ChatHeaderProps {
   chatId: number;
@@ -10,6 +12,13 @@ interface ChatHeaderProps {
 export const ChatHeader = ({ chatId }: ChatHeaderProps) => {
   const [searchParams, setSearchParams] = useSearchParams();
   const { data: chat, isLoading, isError } = useChat(chatId);
+  const otherUserId = chat?.otherUser.id ?? 0;
+  const {
+    data: presence,
+    isPending: isPresencePending,
+    isError: isPresenceError,
+  } = useUserPresence(otherUserId ? [otherUserId] : []);
+  const isOnline = presence?.find(({ userId }) => userId === otherUserId)?.online;
 
   const handleBack = () => {
     const newParams = new URLSearchParams(searchParams);
@@ -74,14 +83,29 @@ export const ChatHeader = ({ chatId }: ChatHeaderProps) => {
           <Avatar
             name={chat.otherUser.displayName}
             url={chat.otherUser.avatarUrl}
+            isOnline={isOnline}
             className="w-10 h-10 md:w-11 md:h-11 shrink-0"
           />
           <div className="flex min-w-0 flex-col">
             <h2 className="truncate text-sm md:text-base font-semibold text-zinc-900 leading-tight group-hover:text-black transition-colors">
               {chat.otherUser.displayName}
             </h2>
-            <span className="text-xs text-zinc-600 font-medium flex items-center gap-1 mt-0.5">
-              Direct conversation
+            <span
+              className={cn(
+                'mt-0.5 text-xs font-medium',
+                isOnline === true && 'text-emerald-700',
+                isOnline === false && 'text-zinc-500',
+                typeof isOnline !== 'boolean' && 'text-zinc-500'
+              )}
+              aria-live="polite"
+            >
+              {isPresenceError
+                ? 'Status unavailable'
+                : isPresencePending || typeof isOnline !== 'boolean'
+                  ? 'Checking status…'
+                  : isOnline
+                    ? 'Online'
+                    : 'Offline'}
             </span>
           </div>
         </Link>

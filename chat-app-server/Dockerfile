@@ -1,9 +1,7 @@
 # syntax=docker/dockerfile:1
 
-# ==================================================
 # STAGE 1: BUILD
 # Dùng JDK 21 để compile và đóng gói ứng dụng
-# ==================================================
 FROM eclipse-temurin:21-jdk-alpine AS builder
 
 WORKDIR /workspace
@@ -25,10 +23,8 @@ RUN --mount=type=cache,target=/root/.m2,sharing=locked \
     ./mvnw -B -ntp clean package -DskipTests
 
 
-# ==================================================
 # STAGE 2: RUNTIME
 # Image cuối chỉ chứa JRE và file JAR
-# ==================================================
 FROM eclipse-temurin:21-jre-alpine AS runtime
 
 # Metadata của image

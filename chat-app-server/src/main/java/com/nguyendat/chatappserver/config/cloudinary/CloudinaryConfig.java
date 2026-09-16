@@ -8,13 +8,13 @@ import org.springframework.context.annotation.Configuration;
 @Configuration
 public class CloudinaryConfig {
 
-    @Bean
-    Cloudinary cloudinary(CloudinaryProperties properties) {
-        return new Cloudinary(
-                ObjectUtils.asMap(
-                        "cloud_name", properties.cloudName(),
-                        "api_key", properties.apiKey(),
-                        "api_secret", properties.apiSecret(),
-                        "secure", true));
-    }
+  @Bean
+  Cloudinary cloudinary(CloudinaryProperties properties) {
+    return new Cloudinary(
+        ObjectUtils.asMap(
+            "cloud_name", properties.cloudName(),
+            "api_key", properties.apiKey(),
+            "api_secret", properties.apiSecret(),
+            "secure", true));
+  }
 }

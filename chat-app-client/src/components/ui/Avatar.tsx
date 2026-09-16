@@ -75,8 +75,9 @@ export function Avatar({ url, name, size = 'md', className = '', isOnline }: Ava
           className={cn(
             "absolute bottom-0 right-0 rounded-full border-white",
             statusDotSizes[size],
-            isOnline ? "bg-emerald-500" : "bg-zinc-300"
+            isOnline ? "bg-emerald-500" : "bg-zinc-500"
           )}
+          role="img"
           aria-label={isOnline ? 'Online' : 'Offline'}
           title={isOnline ? 'Online' : 'Offline'}
         />
