@@ -1,0 +1,226 @@
+{
+  "schema_version": 1,
+  "diagram_type": "architecture",
+  "meta": {
+    "title": "Kiến trúc Chat App Server",
+    "output": "chat-app-server-architecture.html",
+    "quality_profile": "showcase",
+    "viewBox": [1240, 720],
+    "views": [
+      {
+        "id": "request-path",
+        "label": "Luồng yêu cầu",
+        "focus": ["client", "rest-api", "app-services", "jpa-repositories", "postgresql"],
+        "note": "Theo dõi yêu cầu REST từ client đến dữ liệu bền vững."
+      },
+      {
+        "id": "realtime-path",
+        "label": "Luồng realtime",
+        "focus": ["client", "stomp-gateway", "app-services", "domain-events"],
+        "note": "STOMP nhận lệnh và phát sự kiện cá nhân sau khi giao dịch commit."
+      },
+      {
+        "id": "supporting-services",
+        "label": "Dịch vụ hỗ trợ",
+        "focus": ["app-services", "redis", "cloudinary"],
+        "note": "Redis lưu presence ngắn hạn; Cloudinary phục vụ quy trình avatar."
+      }
+    ]
+  },
+  "components": [
+    {
+      "id": "client",
+      "type": "frontend",
+      "label": "Web / Mobile Client",
+      "sublabel": "REST + STOMP/SockJS",
+      "pos": [30, 320],
+      "size": [150, 72]
+    },
+    {
+      "id": "spring-security",
+      "type": "security",
+      "label": "Spring Security",
+      "sublabel": "JWT filter · stateless",
+      "tag": "BCrypt + CSRF",
+      "pos": [250, 105],
+      "size": [170, 76]
+    },
+    {
+      "id": "rest-api",
+      "type": "backend",
+      "label": "REST Controllers",
+      "sublabel": "Auth · Users · Friends · Chats",
+      "pos": [250, 285],
+      "size": [170, 76]
+    },
+    {
+      "id": "stomp-gateway",
+      "type": "messagebus",
+      "label": "STOMP Gateway",
+      "sublabel": "/ws · /app · /user/queue",
+      "tag": "Simple Broker",
+      "pos": [250, 475],
+      "size": [170, 76]
+    },
+    {
+      "id": "app-services",
+      "type": "backend",
+      "label": "Application Services",
+      "sublabel": "Auth · Social · Chat",
+      "tag": "@Transactional",
+      "pos": [500, 285],
+      "size": [185, 76]
+    },
+    {
+      "id": "domain-events",
+      "type": "messagebus",
+      "label": "Realtime Event Listeners",
+      "sublabel": "AFTER_COMMIT → user queues",
+      "pos": [500, 475],
+      "size": [185, 76]
+    },
+    {
+      "id": "jpa-repositories",
+      "type": "backend",
+      "label": "Spring Data JPA",
+      "sublabel": "Repositories + MapStruct",
+      "pos": [765, 285],
+      "size": [165, 76]
+    },
+    {
+      "id": "redis",
+      "type": "database",
+      "label": "Redis 8",
+      "sublabel": "Presence TTL 90 giây",
+      "pos": [765, 105],
+      "size": [165, 76]
+    },
+    {
+      "id": "postgresql",
+      "type": "database",
+      "label": "PostgreSQL 17",
+      "sublabel": "Chat data · Flyway migrations",
+      "pos": [1030, 285],
+      "size": [170, 76]
+    },
+    {
+      "id": "cloudinary",
+      "type": "cloud",
+      "label": "Cloudinary",
+      "sublabel": "Signed avatar upload",
+      "pos": [765, 565],
+      "size": [165, 76]
+    }
+  ],
+  "boundaries": [
+    {
+      "kind": "region",
+      "label": "Spring Boot 4 · Java 21 application",
+      "wraps": ["spring-security", "rest-api", "stomp-gateway", "app-services", "domain-events", "jpa-repositories"],
+      "pad": 24
+    }
+  ],
+  "connections": [
+    {
+      "id": "client-rest",
+      "from": "client",
+      "to": "rest-api",
+      "label": "HTTPS · JSON",
+      "variant": "emphasis"
+    },
+    {
+      "id": "client-stomp",
+      "from": "client",
+      "to": "stomp-gateway",
+      "label": "STOMP/SockJS",
+      "variant": "emphasis"
+    },
+    {
+      "id": "security-rest",
+      "from": "spring-security",
+      "to": "rest-api",
+      "label": "xác thực JWT",
+      "variant": "security",
+      "labelAt": [335, 195]
+    },
+    {
+      "id": "rest-services",
+      "from": "rest-api",
+      "to": "app-services",
+      "label": "DTO + use cases"
+    },
+    {
+      "id": "stomp-services",
+      "from": "stomp-gateway",
+      "to": "app-services",
+      "label": "@MessageMapping"
+    },
+    {
+      "id": "services-jpa",
+      "from": "app-services",
+      "to": "jpa-repositories",
+      "label": "entity operations",
+      "labelAt": [825, 385]
+    },
+    {
+      "id": "jpa-postgres",
+      "from": "jpa-repositories",
+      "to": "postgresql",
+      "label": "JDBC / SQL"
+    },
+    {
+      "id": "services-redis",
+      "from": "app-services",
+      "to": "redis",
+      "label": "presence read/write"
+    },
+    {
+      "id": "services-events",
+      "from": "app-services",
+      "to": "domain-events",
+      "label": "publish domain event",
+      "labelAt": [593, 375]
+    },
+    {
+      "id": "events-stomp",
+      "from": "domain-events",
+      "to": "stomp-gateway",
+      "label": "push sau commit",
+      "variant": "dashed",
+      "labelAt": [460, 570]
+    },
+    {
+      "id": "services-cloudinary",
+      "from": "app-services",
+      "to": "cloudinary",
+      "label": "ký upload avatar",
+      "variant": "dashed"
+    }
+  ],
+  "cards": [
+    {
+      "dot": "cyan",
+      "title": "Kênh vào",
+      "items": [
+        "REST xử lý auth, user, friendship, chat và message",
+        "STOMP/SockJS hỗ trợ gửi tin và heartbeat presence"
+      ]
+    },
+    {
+      "dot": "emerald",
+      "title": "Dữ liệu",
+      "items": [
+        "PostgreSQL là nguồn dữ liệu bền vững; Flyway quản lý schema",
+        "Redis giữ trạng thái online bằng khóa có TTL 90 giây"
+      ]
+    },
+    {
+      "dot": "violet",
+      "title": "Realtime",
+      "items": [
+        "Domain events chỉ được phát tới user queue sau khi transaction commit",
+        "Cloudinary dùng chữ ký phía server cho quy trình upload avatar"
+      ]
+    }
+  ]
+}

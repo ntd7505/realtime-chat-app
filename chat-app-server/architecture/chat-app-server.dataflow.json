@@ -1,0 +1,209 @@
+{
+  "schema_version": 1,
+  "diagram_type": "dataflow",
+  "meta": {
+    "title": "Luồng dữ liệu Chat App Server",
+    "output": "chat-app-server-dataflow.html",
+    "quality_profile": "showcase",
+    "viewBox": [1080, 680],
+    "views": [
+      {
+        "id": "message-flow",
+        "label": "Gửi tin nhắn",
+        "focus": ["client-input", "api-ingress", "app-services", "postgresql", "domain-events", "client-output"],
+        "note": "Tin nhắn được ghi bền vững trước khi sự kiện realtime phát sau commit."
+      },
+      {
+        "id": "identity-flow",
+        "label": "Xác thực",
+        "focus": ["client-input", "api-ingress", "identity", "app-services", "postgresql"],
+        "note": "JWT hoặc STOMP CONNECT token được đổi thành User principal cho use case."
+      },
+      {
+        "id": "presence-flow",
+        "label": "Presence",
+        "focus": ["client-input", "api-ingress", "app-services", "redis", "client-output"],
+        "note": "Heartbeat cập nhật khóa Redis có TTL; truy vấn trạng thái trả về client."
+      }
+    ]
+  },
+  "stages": [
+    { "label": "Nguồn" },
+    { "label": "Tiếp nhận" },
+    { "label": "Xử lý" },
+    { "label": "Trạng thái & sự kiện" },
+    { "label": "Phân phối" }
+  ],
+  "nodes": [
+    {
+      "id": "client-input",
+      "type": "frontend",
+      "label": "Client Input",
+      "sublabel": "Web / Mobile actions",
+      "tag": "JSON + STOMP",
+      "stage": 0,
+      "row": 1
+    },
+    {
+      "id": "api-ingress",
+      "type": "backend",
+      "label": "REST + STOMP Ingress",
+      "sublabel": "Controllers · /ws",
+      "tag": "DTO validation",
+      "stage": 1,
+      "row": 1,
+      "width": 140
+    },
+    {
+      "id": "identity",
+      "type": "security",
+      "label": "Identity Context",
+      "sublabel": "JWT + WS principal",
+      "tag": "Authenticated User",
+      "stage": 2,
+      "row": 0
+    },
+    {
+      "id": "app-services",
+      "type": "backend",
+      "label": "Application Services",
+      "sublabel": "Auth · Social · Chat",
+      "tag": "Transactions",
+      "stage": 2,
+      "row": 1,
+      "width": 140
+    },
+    {
+      "id": "postgresql",
+      "type": "database",
+      "label": "PostgreSQL 17",
+      "sublabel": "Durable domain state",
+      "tag": "Flyway schema",
+      "stage": 3,
+      "row": 0
+    },
+    {
+      "id": "domain-events",
+      "type": "messagebus",
+      "label": "Post-commit Events",
+      "sublabel": "Transactional listeners",
+      "tag": "AFTER_COMMIT",
+      "stage": 3,
+      "row": 1
+    },
+    {
+      "id": "redis",
+      "type": "database",
+      "label": "Redis Presence",
+      "sublabel": "chat-app:presence:user:*",
+      "tag": "TTL 90 giây",
+      "stage": 3,
+      "row": 2
+    },
+    {
+      "id": "client-output",
+      "type": "frontend",
+      "label": "Client State",
+      "sublabel": "REST payloads · STOMP queues",
+      "tag": "UI updates",
+      "stage": 4,
+      "row": 1,
+      "width": 140
+    }
+  ],
+  "flows": [
+    {
+      "id": "client-to-ingress",
+      "from": "client-input",
+      "to": "api-ingress",
+      "label": "JSON + STOMP",
+      "classification": "input",
+      "variant": "emphasis",
+      "route": "straight"
+    },
+    {
+      "id": "ingress-to-identity",
+      "from": "api-ingress",
+      "to": "identity",
+      "label": "JWT / CONNECT",
+      "classification": "credential",
+      "variant": "security"
+    },
+    {
+      "id": "identity-to-services",
+      "from": "identity",
+      "to": "app-services",
+      "label": "User principal",
+      "classification": "identity",
+      "variant": "security",
+      "labelAt": [520, 220]
+    },
+    {
+      "id": "ingress-to-services",
+      "from": "api-ingress",
+      "to": "app-services",
+      "label": "DTO",
+      "classification": "validated",
+      "route": "straight",
+      "labelAt": [423, 314]
+    },
+    {
+      "id": "services-to-postgres",
+      "from": "app-services",
+      "to": "postgresql",
+      "label": "domain records",
+      "classification": "JPA read/write",
+      "variant": "emphasis"
+    },
+    {
+      "id": "services-to-events",
+      "from": "app-services",
+      "to": "domain-events",
+      "label": "domain events",
+      "classification": "after commit",
+      "variant": "dashed",
+      "route": "straight",
+      "labelAt": [730, 340]
+    },
+    {
+      "id": "services-to-redis",
+      "from": "app-services",
+      "to": "redis",
+      "label": "presence key",
+      "classification": "TTL 90s"
+    },
+    {
+      "id": "events-to-client",
+      "from": "domain-events",
+      "to": "client-output",
+      "label": "topic + user queue",
+      "classification": "realtime",
+      "variant": "emphasis",
+      "route": "straight",
+      "labelAt": [846, 314]
+    }
+  ],
+  "cards": [
+    {
+      "dot": "emerald",
+      "title": "Dữ liệu bền vững",
+      "items": [
+        "PostgreSQL giữ domain state; MessageCreator ghi message trong transaction mới"
+      ]
+    },
+    {
+      "dot": "violet",
+      "title": "Realtime đáng tin cậy",
+      "items": [
+        "Sự kiện tới topic và user queue chỉ được phát sau transaction commit"
+      ]
+    },
+    {
+      "dot": "cyan",
+      "title": "Trạng thái tạm thời",
+      "items": [
+        "Heartbeat ghi presence key vào Redis với TTL 90 giây"
+      ]
+    }
+  ]
+}

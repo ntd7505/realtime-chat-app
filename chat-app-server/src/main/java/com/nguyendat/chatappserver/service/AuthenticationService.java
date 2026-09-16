@@ -5,5 +5,11 @@ import com.nguyendat.chatappserver.dto.response.LoginResponse;
 
 public interface AuthenticationService {
 
-  LoginResponse login(LoginRequest request);
+  AuthenticationResult login(LoginRequest request);
+
+  AuthenticationResult refresh(String rawRefreshToken);
+
+  void logout(String rawRefreshToken);
+
+  record AuthenticationResult(LoginResponse response, String rawRefreshToken) {}
 }

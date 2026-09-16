@@ -1,0 +1,16 @@
+:root {
+  --background-color: #d8eee2;
+  --text-color: #18181b;
+  --primary-color: #18181b;
+  --primary-hover: #09090b;
+  --border-color: #e4e4e7;
+  --surface-color: #ffffff;
+  --shell-color: #fdfbf7;
+  --surface-muted: #f4f4f5;
+  --accent-color: #059669;
+  --destructive-color: #e11d48;
+  --warning-color: #d97706;
+  --focus-ring: #18181b;
+  --radius-card: 28px;
+  --radius-btn: 12px;
+}

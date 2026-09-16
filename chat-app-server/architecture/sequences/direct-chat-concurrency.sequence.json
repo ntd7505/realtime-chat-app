@@ -1,0 +1,70 @@
+{
+  "schema_version": 1,
+  "diagram_type": "sequence",
+  "meta": {
+    "title": "Tạo direct chat khi có request đồng thời",
+    "output": "direct-chat-concurrency-sequence.html",
+    "quality_profile": "showcase",
+    "column_fit": "spread",
+    "viewBox": [1080, 660],
+    "views": [
+      {
+        "id": "preconditions",
+        "label": "Điều kiện nghiệp vụ",
+        "focus": ["clients", "chat-api", "chat-service", "postgresql"],
+        "note": "Hai request đều kiểm tra target, block, friendship và directKey đã sắp thứ tự."
+      },
+      {
+        "id": "race-window",
+        "label": "Race window",
+        "focus": ["chat-service", "chat-creator", "postgresql"],
+        "note": "Cả hai có thể cùng thấy chưa có chat trước khi transaction tạo riêng bắt đầu."
+      },
+      {
+        "id": "conflict-recovery",
+        "label": "Khôi phục conflict",
+        "focus": ["chat-creator", "postgresql", "chat-service", "chat-api", "clients"],
+        "note": "Request thua unique race đọc lại chat thắng và trả cùng một chat ID."
+      }
+    ]
+  },
+  "participants": [
+    { "id": "clients", "type": "frontend", "label": "Clients A + B", "sublabel": "concurrent callers" },
+    { "id": "chat-api", "type": "backend", "label": "Chat API", "sublabel": "POST /chats/direct" },
+    { "id": "chat-service", "type": "backend", "label": "Chat Service", "sublabel": "createOrGet" },
+    { "id": "chat-creator", "type": "backend", "label": "DirectChatCreator", "sublabel": "REQUIRES_NEW" },
+    { "id": "postgresql", "type": "database", "label": "PostgreSQL", "sublabel": "unique direct_key" }
+  ],
+  "segments": [
+    { "from": 150, "to": 290, "label": "Hai request cùng vượt pre-check" },
+    { "from": 300, "to": 465, "label": "Unique race" },
+    { "from": 475, "to": 590, "label": "Rediscover winner" }
+  ],
+  "messages": [
+    { "id": "request-a", "from": "clients", "to": "chat-api", "y": 165, "label": "A: POST /chats/direct/{userId}", "variant": "emphasis" },
+    { "id": "request-b", "from": "clients", "to": "chat-api", "y": 193, "label": "B: same request concurrently", "variant": "emphasis" },
+    { "id": "dispatch-both", "from": "chat-api", "to": "chat-service", "y": 221, "label": "createOrGetDirectChat(A + B)" },
+    { "id": "prechecks", "from": "chat-service", "to": "postgresql", "y": 249, "label": "target + block + friendship + directKey" },
+    { "id": "direct-key-miss", "from": "postgresql", "to": "chat-service", "y": 277, "label": "both see directKey missing", "variant": "return", "note": "directKey = min(userId):max(userId)" },
+    { "id": "create-a", "from": "chat-service", "to": "chat-creator", "y": 315, "label": "create request A" },
+    { "id": "insert-a", "from": "chat-creator", "to": "postgresql", "y": 343, "label": "INSERT chat + 2 members", "variant": "emphasis" },
+    { "id": "commit-a", "from": "postgresql", "to": "chat-creator", "y": 371, "label": "A commits unique direct_key", "variant": "return" },
+    { "id": "create-b", "from": "chat-service", "to": "chat-creator", "y": 399, "label": "create request B" },
+    { "id": "insert-b", "from": "chat-creator", "to": "postgresql", "y": 427, "label": "INSERT same direct_key", "variant": "dashed" },
+    { "id": "unique-conflict", "from": "postgresql", "to": "chat-service", "y": 455, "label": "DataIntegrityViolationException", "variant": "return" },
+    { "id": "rediscover", "from": "chat-service", "to": "postgresql", "y": 493, "label": "findByDirectKey(directKey)", "variant": "emphasis" },
+    { "id": "winner-chat", "from": "postgresql", "to": "chat-service", "y": 521, "label": "winner chat", "variant": "return" },
+    { "id": "shared-response", "from": "chat-service", "to": "chat-api", "y": 549, "label": "same ChatResponse for A + B", "variant": "return" },
+    { "id": "responses", "from": "chat-api", "to": "clients", "y": 577, "label": "200 with the same chat ID", "variant": "return" }
+  ],
+  "activations": [
+    { "participant": "chat-api", "from": 160, "to": 585, "type": "backend" },
+    { "participant": "chat-service", "from": 216, "to": 557, "type": "backend" },
+    { "participant": "chat-creator", "from": 310, "to": 440, "type": "backend" },
+    { "participant": "postgresql", "from": 244, "to": 530, "type": "database" }
+  ],
+  "cards": [
+    { "dot": "amber", "title": "Idempotency theo cặp user", "items": ["directKey được chuẩn hóa bằng min:max nên hai chiều A↔B cùng một khóa."] },
+    { "dot": "rose", "title": "Database là trọng tài", "items": ["Unique constraint chọn winner; loser bắt conflict và đọc lại bản ghi đã commit."] }
+  ]
+}

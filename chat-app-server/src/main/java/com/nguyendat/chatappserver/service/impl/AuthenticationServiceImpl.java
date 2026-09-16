@@ -21,9 +21,10 @@ public class AuthenticationServiceImpl implements AuthenticationService {
   UserRepository userRepository;
   PasswordEncoder passwordEncoder;
   JwtService jwtService;
+  RefreshTokenService refreshTokenService;
 
   @Override
-  public LoginResponse login(LoginRequest request) {
+  public AuthenticationResult login(LoginRequest request) {
     User user =
         userRepository
             .findUserByEmail(request.getEmail())
@@ -35,10 +36,37 @@ public class AuthenticationServiceImpl implements AuthenticationService {
 
     String accessToken = jwtService.generateAccessToken(user);
 
+    var refreshToken = refreshTokenService.create(user);
+
+    LoginResponse loginResponse = buildLoginResponse(accessToken, user);
+
+    return new AuthenticationResult(loginResponse, refreshToken);
+  }
+
+  @Override
+  public AuthenticationResult refresh(String rawRefreshToken) {
+
+    RefreshTokenService.RefreshTokenResult rotated = refreshTokenService.rotate(rawRefreshToken);
+
+    User user = rotated.user();
+
+    String accessToken = jwtService.generateAccessToken(user);
+
+    LoginResponse loginResponse = buildLoginResponse(accessToken, user);
+
+    return new AuthenticationResult(loginResponse, rotated.rawToken());
+  }
+
+  @Override
+  public void logout(String rawRefreshToken) {
+    refreshTokenService.revoke(rawRefreshToken);
+  }
+
+  private LoginResponse buildLoginResponse(String accessToken, User user) {
     return new LoginResponse(
         accessToken,
         "Bearer",
-        3600,
+        jwtService.getAccessTokenExpiration(),
         new LoginResponse.UserInfo(
             user.getId(), user.getEmail(), user.getDisplayName(), user.getAvatarUrl()));
   }

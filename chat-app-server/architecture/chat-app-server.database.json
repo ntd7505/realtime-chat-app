@@ -1,0 +1,28 @@
+{
+  "schema_version": 1,
+  "diagram_type": "architecture",
+  "meta": {"title": "Database — Chat App Server", "quality_profile": "showcase", "viewBox": [1200, 720]},
+  "components": [
+    {"id": "users", "type": "database", "label": "users", "sublabel": "PK id · UQ email", "tag": "Hồ sơ & mật khẩu", "pos": [70, 340], "size": [220, 84]},
+    {"id": "members", "type": "database", "label": "chat_members", "sublabel": "PK id · FK user_id, chat_id", "tag": "UQ (chat_id, user_id)", "pos": [490, 340], "size": [240, 84]},
+    {"id": "chats", "type": "database", "label": "chats", "sublabel": "PK id · UQ direct_key", "tag": "Cuộc trò chuyện", "pos": [940, 340], "size": [220, 84]},
+    {"id": "refresh", "type": "database", "label": "refresh_tokens", "sublabel": "PK id · FK user_id", "tag": "UQ token_hash", "pos": [70, 90], "size": [220, 84]},
+    {"id": "friends", "type": "database", "label": "friendships", "sublabel": "FK requester_id, recipient_id", "tag": "UQ cặp có hướng", "pos": [490, 90], "size": [240, 84]},
+    {"id": "blocks", "type": "database", "label": "user_blocks", "sublabel": "FK blocker_id, blocked_user_id", "tag": "CHECK không tự chặn", "pos": [70, 590], "size": [220, 84]},
+    {"id": "messages", "type": "database", "label": "messages", "sublabel": "PK id · FK chat_id, sender_id", "tag": "UQ (sender_id, client_message_id)", "pos": [870, 590], "size": [290, 84]}
+  ],
+  "connections": [
+    {"id": "user-members", "from": "users", "to": "members", "label": "1 → N · user_id", "labelAt": [390, 450]},
+    {"id": "chat-members", "from": "members", "to": "chats", "label": "N → 1 · chat_id"},
+    {"id": "user-refresh", "from": "users", "to": "refresh", "label": "1 → N · user_id"},
+    {"id": "user-friendships", "from": "users", "to": "friends", "label": "1 → N · hai vai trò"},
+    {"id": "user-blocks", "from": "users", "to": "blocks", "label": "1 → N · hai vai trò", "labelAt": [180, 510]},
+    {"id": "chat-messages", "from": "chats", "to": "messages", "label": "1 → N · chat_id", "fromSide": "bottom", "toSide": "top"},
+    {"id": "member-read", "from": "members", "to": "messages", "label": "N → 0..1 · last_read_message_id"}
+  ],
+  "cards": [
+    {"dot": "cyan", "title": "Quan hệ bổ sung", "items": ["messages.sender_id → users.id (N → 1); liệt kê riêng để tránh đường chéo dài."]},
+    {"dot": "emerald", "title": "Nguồn sự thật", "items": ["Flyway V1–V4: 7 bảng nghiệp vụ; Redis presence nằm ngoài PostgreSQL."]},
+    {"dot": "amber", "title": "Cách đọc", "items": ["Mũi tên biểu diễn quan hệ, không phải data flow; README ghi đầy đủ cột và FK."]}
+  ]
+}

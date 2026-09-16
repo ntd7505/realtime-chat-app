@@ -1,0 +1,69 @@
+{
+  "schema_version": 1,
+  "diagram_type": "sequence",
+  "meta": {
+    "title": "Refresh token rotation an toàn",
+    "output": "refresh-token-rotation-sequence.html",
+    "quality_profile": "showcase",
+    "column_fit": "spread",
+    "viewBox": [1080, 620],
+    "views": [
+      {
+        "id": "cookie-boundary",
+        "label": "Cookie boundary",
+        "focus": ["client", "auth-controller", "auth-service"],
+        "note": "Raw refresh token chỉ đi qua HttpOnly cookie và không xuất hiện trong JSON body."
+      },
+      {
+        "id": "rotation-lock",
+        "label": "Rotation lock",
+        "focus": ["refresh-service", "postgresql"],
+        "note": "SHA-256 hash được SELECT FOR UPDATE trước khi kiểm tra và thay thế."
+      },
+      {
+        "id": "new-session",
+        "label": "Cấp token mới",
+        "focus": ["jwt-service", "auth-service", "auth-controller", "client"],
+        "note": "Access token mới vào response body; refresh token mới quay lại Set-Cookie."
+      }
+    ]
+  },
+  "participants": [
+    { "id": "client", "type": "frontend", "label": "Client", "sublabel": "browser cookie jar" },
+    { "id": "auth-controller", "type": "backend", "label": "Auth Controller", "sublabel": "POST /auth/refresh" },
+    { "id": "auth-service", "type": "backend", "label": "Auth Service", "sublabel": "refresh orchestration" },
+    { "id": "refresh-service", "type": "security", "label": "Refresh Service", "sublabel": "rotate + revoke" },
+    { "id": "postgresql", "type": "database", "label": "PostgreSQL", "sublabel": "refresh_sessions" },
+    { "id": "jwt-service", "type": "security", "label": "JWT Service", "sublabel": "access token" }
+  ],
+  "segments": [
+    { "from": 150, "to": 245, "label": "Receive" },
+    { "from": 250, "to": 395, "label": "Lock + rotate" },
+    { "from": 400, "to": 520, "label": "Issue response" }
+  ],
+  "messages": [
+    { "id": "refresh-request", "from": "client", "to": "auth-controller", "y": 165, "label": "POST /auth/refresh", "variant": "emphasis", "note": "Cookie: refresh_token=<raw>" },
+    { "id": "refresh-command", "from": "auth-controller", "to": "auth-service", "y": 195, "label": "refresh(rawRefreshToken)" },
+    { "id": "rotate-command", "from": "auth-service", "to": "refresh-service", "y": 225, "label": "rotate(raw token)", "variant": "security" },
+    { "id": "lock-token", "from": "refresh-service", "to": "postgresql", "y": 265, "label": "SELECT tokenHash FOR UPDATE", "variant": "security", "note": "tokenHash = SHA-256(raw token)" },
+    { "id": "token-row", "from": "postgresql", "to": "refresh-service", "y": 295, "label": "refresh session + user", "variant": "return", "note": "Thiếu, revoked hoặc expired → INVALID_TOKEN/TOKEN_EXPIRED" },
+    { "id": "replace-hash", "from": "refresh-service", "to": "postgresql", "y": 325, "label": "replace with SHA-256(new raw token)", "variant": "emphasis" },
+    { "id": "rotation-commit", "from": "postgresql", "to": "refresh-service", "y": 355, "label": "COMMIT", "variant": "return" },
+    { "id": "rotated-result", "from": "refresh-service", "to": "auth-service", "y": 385, "label": "user + new raw refresh token", "variant": "return" },
+    { "id": "new-access-token", "from": "auth-service", "to": "jwt-service", "y": 415, "label": "generateAccessToken(user)", "variant": "security" },
+    { "id": "access-token", "from": "jwt-service", "to": "auth-service", "y": 445, "label": "new access token", "variant": "return" },
+    { "id": "auth-result", "from": "auth-service", "to": "auth-controller", "y": 475, "label": "AuthenticationResult", "variant": "return" },
+    { "id": "refresh-response", "from": "auth-controller", "to": "client", "y": 505, "label": "200 JSON + Set-Cookie HttpOnly", "variant": "return" }
+  ],
+  "activations": [
+    { "participant": "auth-controller", "from": 160, "to": 515, "type": "backend" },
+    { "participant": "auth-service", "from": 190, "to": 485, "type": "backend" },
+    { "participant": "refresh-service", "from": 220, "to": 395, "type": "security" },
+    { "participant": "postgresql", "from": 260, "to": 365, "type": "database" },
+    { "participant": "jwt-service", "from": 410, "to": 450, "type": "security" }
+  ],
+  "cards": [
+    { "dot": "rose", "title": "Replay resistance", "items": ["Pessimistic write lock serialize các refresh đồng thời trên cùng token hash."] },
+    { "dot": "cyan", "title": "Tách kênh token", "items": ["Access token ở JSON; refresh token mới chỉ ở cookie HttpOnly/SameSite."] }
+  ]
+}
