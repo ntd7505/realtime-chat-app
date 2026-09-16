@@ -1,0 +1,74 @@
+{
+  "schema_version": 1,
+  "diagram_type": "sequence",
+  "meta": {
+    "title": "Gửi tin nhắn realtime và bảo đảm idempotency",
+    "output": "message-realtime-sequence.html",
+    "quality_profile": "showcase",
+    "column_fit": "spread",
+    "viewBox": [1080, 640],
+    "views": [
+      {
+        "id": "deduplication",
+        "label": "Chống gửi trùng",
+        "focus": ["client", "ws-controller", "message-service", "postgresql"],
+        "note": "clientMessageId được tra trước và được bảo vệ thêm bằng unique constraint."
+      },
+      {
+        "id": "transaction",
+        "label": "Transaction ghi tin",
+        "focus": ["message-service", "message-creator", "postgresql", "event-listener"],
+        "note": "Chat bị khóa, message được flush và event chỉ chạy sau commit."
+      },
+      {
+        "id": "delivery",
+        "label": "Phân phối realtime",
+        "focus": ["event-listener", "stomp-broker", "ws-controller", "client"],
+        "note": "Topic/user events và ACK/REJECT dùng các destination khác nhau."
+      }
+    ]
+  },
+  "participants": [
+    { "id": "client", "type": "frontend", "label": "Client", "sublabel": "STOMP session" },
+    { "id": "ws-controller", "type": "backend", "label": "WS Controller", "sublabel": "ChatWebSocketController" },
+    { "id": "message-service", "type": "backend", "label": "Message Service", "sublabel": "idempotency + policy" },
+    { "id": "message-creator", "type": "backend", "label": "Message Creator", "sublabel": "REQUIRES_NEW" },
+    { "id": "postgresql", "type": "database", "label": "PostgreSQL", "sublabel": "chat + messages" },
+    { "id": "event-listener", "type": "messagebus", "label": "Event Listener", "sublabel": "AFTER_COMMIT" },
+    { "id": "stomp-broker", "type": "messagebus", "label": "STOMP Broker", "sublabel": "topic + user queues" }
+  ],
+  "segments": [
+    { "from": 150, "to": 265, "label": "Validate + deduplicate" },
+    { "from": 270, "to": 405, "label": "Transactional write" },
+    { "from": 410, "to": 570, "label": "Post-commit delivery" }
+  ],
+  "messages": [
+    { "id": "send-frame", "from": "client", "to": "ws-controller", "y": 165, "label": "SEND /app/chats/{chatId}/messages", "variant": "emphasis", "note": "content + clientMessageId" },
+    { "id": "send-command", "from": "ws-controller", "to": "message-service", "y": 193, "label": "sendMessage(request, chatId, user)" },
+    { "id": "dedupe-query", "from": "message-service", "to": "postgresql", "y": 221, "label": "find senderId + clientMessageId", "variant": "security" },
+    { "id": "dedupe-miss", "from": "postgresql", "to": "message-service", "y": 249, "label": "not found", "variant": "return", "note": "Nếu đã tồn tại: so chat/content rồi trả created=false" },
+    { "id": "policy-query", "from": "message-service", "to": "postgresql", "y": 277, "label": "load recipient + check block" },
+    { "id": "create-message", "from": "message-service", "to": "message-creator", "y": 305, "label": "create(...)" },
+    { "id": "lock-and-write", "from": "message-creator", "to": "postgresql", "y": 333, "label": "lock chat; insert message; update lastMessageAt", "variant": "emphasis" },
+    { "id": "publish-domain-event", "from": "message-creator", "to": "event-listener", "y": 361, "label": "publish MessageCreatedEvent", "variant": "dashed" },
+    { "id": "commit", "from": "postgresql", "to": "message-creator", "y": 389, "label": "COMMIT", "variant": "return" },
+    { "id": "broadcast-topic", "from": "event-listener", "to": "stomp-broker", "y": 417, "label": "message → /topic/chats/{chatId}", "variant": "emphasis" },
+    { "id": "broadcast-users", "from": "event-listener", "to": "stomp-broker", "y": 445, "label": "CHAT_UPDATED → sender + recipient", "variant": "dashed" },
+    { "id": "push-events", "from": "stomp-broker", "to": "client", "y": 473, "label": "topic + /user/queue/events", "variant": "return" },
+    { "id": "service-result", "from": "message-service", "to": "ws-controller", "y": 501, "label": "SendMessageResult(created=true)", "variant": "return" },
+    { "id": "delivery-ack", "from": "ws-controller", "to": "stomp-broker", "y": 529, "label": "MESSAGE_ACK → /queue/message-events", "variant": "dashed" },
+    { "id": "ack-to-client", "from": "stomp-broker", "to": "client", "y": 557, "label": "ACK + canonical message", "variant": "return" }
+  ],
+  "activations": [
+    { "participant": "ws-controller", "from": 160, "to": 540, "type": "backend" },
+    { "participant": "message-service", "from": 188, "to": 510, "type": "backend" },
+    { "participant": "message-creator", "from": 300, "to": 400, "type": "backend" },
+    { "participant": "postgresql", "from": 216, "to": 395, "type": "database" },
+    { "participant": "event-listener", "from": 356, "to": 455, "type": "messagebus" },
+    { "participant": "stomp-broker", "from": 412, "to": 565, "type": "messagebus" }
+  ],
+  "cards": [
+    { "dot": "emerald", "title": "Hai lớp idempotency", "items": ["Tra cứu sớm tối ưu retry; unique(sender_id, client_message_id) chặn race và cho phép rediscover."] },
+    { "dot": "violet", "title": "Ranh giới commit", "items": ["Realtime event chỉ được gửi bởi @TransactionalEventListener(AFTER_COMMIT)."] }
+  ]
+}
